@@ -1,0 +1,94 @@
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 180px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  padding: 6px;
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: opacity, transform;
+}
+
+.context-menu.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: all;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.context-menu-item:active {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(0.98);
+}
+
+.context-menu-item.danger {
+  color: #EF4444;
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 6px;
+}
+
+.context-menu-item svg {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.context-menu-item:hover svg {
+  opacity: 1;
+}
+
+/* Sub-label for items */
+.context-menu-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu-shortcut {
+  margin-left: auto;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.03em;
+}

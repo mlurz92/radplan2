@@ -1,0 +1,304 @@
+:root {
+  --navy-900: #0B131F;
+  --navy-800: #111C2E;
+  --navy-700: #18283F;
+  --navy-600: #1F3554;
+  --navy-500: #274468;
+  --navy-400: #345484;
+  --steel: #3674A8;
+  --accent: #0EA5E9;
+  --accent-lt: #67D4FF;
+  --accent-xs: #E8F8FF;
+  --accent-dim: rgba(14,165,233,.10);
+  --white: #FFFFFF;
+  --gray-50: #F8FAFC;
+  --gray-100: #F1F5F9;
+  --gray-150: #E9EFF6;
+  --gray-200: #E2E8F0;
+  --gray-300: #CBD5E1;
+  --gray-400: #94A3B8;
+  --gray-500: #64748B;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1E293B;
+  --gray-900: #0F172A;
+  --red: #EF4444;
+  --red-dark: #B91C1C;
+  --red-lt: #FEF2F2;
+  --red-bg: #FEE2E2;
+  --blue-d: #0EA5E9;
+  --green: #22C55E;
+  --green-lt: #F0FDF4;
+  --orange: #F97316;
+  --header-h: 54px;
+  --statsbar-h: 38px;
+  --name-w: 155px;
+  --cell-w: 48px;
+  --row-h: clamp(40px, 4.5vh, 60px);
+  --foot-h: 30px;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --border: 1px solid rgba(var(--ink-rgb),.08);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --glass-bg: rgba(var(--ink-rgb),.04);
+  --glass-bg-hover: rgba(var(--ink-rgb),.08);
+  --glass-border: rgba(var(--ink-rgb),.08);
+  --glass-border-h: rgba(var(--ink-rgb),.14);
+  --glass-blur: 16px;
+  --glass-blur-lg: 24px;
+  --glass-light: rgba(var(--ink-rgb),.65);
+  --glass-light-hover: rgba(var(--ink-rgb),.78);
+  --glass-light-border: rgba(var(--ink-rgb),.12);
+  --glass-light-bg: rgba(var(--ink-rgb),.45);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --shadow-xl: 0 24px 64px rgba(0,0,0,.2), 0 8px 20px rgba(0,0,0,.1);
+  --shadow-glow: 0 0 20px rgba(14,165,233,.15), 0 0 60px rgba(14,165,233,.05);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mnav-h: calc(56px + var(--safe-bottom));
+  --app-vw: 100vw;
+  --app-vh: 100dvh;
+  --kb-inset: 0px;
+  --overlay-pad: clamp(12px, 2.4vw, 24px);
+
+  /* Theme-aware surface tokens — RGB triplets so they can feed rgba() at any alpha.
+     Dark mode (default): light tint over a dark canvas. Light mode overrides below
+     invert the relationship without touching any of the alpha values used throughout
+     the stylesheet, so every "glass" surface keeps its depth in both themes. */
+  --ink-rgb: 255,255,255;
+  --ink-strong: #FFFFFF;
+  --navy-800-rgb: 10,21,37;
+  --navy-900-rgb: 6,13,22;
+  --navy-700-rgb: 15,29,50;
+  --gray-900-rgb: 15,23,42;
+
+  /* --glass-light-bg/-border are deliberately a light-tinted surface in BOTH
+     themes (a frosted panel raised above the canvas). --ink-strong tracks the
+     canvas (white in dark mode) and would sit near-white-on-near-white on top
+     of it, so content placed on a --glass-light-* surface must use this fixed,
+     always-dark token instead. */
+  --ink-on-glass-light: #0F172A;
+
+  /* Semantic, theme-aware text tiers — always legible on the app canvas because
+     they derive from --ink-rgb (white in dark, slate in light) at fixed alphas.
+     Prefer these over the fixed --gray-* scale for body/secondary/muted text
+     that sits on the themed canvas (the gray scale stays correct for fixed
+     light surfaces such as the dept/year tables). */
+  --text-1: var(--ink-strong);
+  --text-2: rgba(var(--ink-rgb),.76);
+  --text-3: rgba(var(--ink-rgb),.58);
+  --text-faint: rgba(var(--ink-rgb),.48);
+}
+
+[data-theme="light"] {
+  --navy-900: #F4F1EA;
+  --navy-800: #ECE7DC;
+  --navy-700: #E2DCCC;
+  --navy-600: #D8CFB8;
+  --navy-500: #C9BC9C;
+  --navy-400: #B3A37C;
+  --steel: #6B8AAE;
+  --border: 1px solid rgba(15,23,42,.08);
+  --glass-bg: rgba(15,23,42,.035);
+  --glass-bg-hover: rgba(15,23,42,.07);
+  --glass-border: rgba(15,23,42,.09);
+  --glass-border-h: rgba(15,23,42,.16);
+  --glass-light: rgba(255,255,255,.82);
+  --glass-light-hover: rgba(255,255,255,.92);
+  --glass-light-border: rgba(15,23,42,.08);
+  --glass-light-bg: rgba(255,255,255,.62);
+  --shadow-xs: 0 1px 2px rgba(15,23,42,.05);
+  --shadow-sm: 0 1px 4px rgba(15,23,42,.07);
+  --shadow-md: 0 4px 12px rgba(15,23,42,.08);
+  --shadow-lg: 0 10px 30px rgba(15,23,42,.12), 0 2px 8px rgba(15,23,42,.06);
+  --shadow-xl: 0 24px 64px rgba(15,23,42,.18), 0 8px 20px rgba(15,23,42,.08);
+  --shadow-glow: 0 0 20px rgba(14,165,233,.18), 0 0 60px rgba(14,165,233,.07);
+
+  --ink-rgb: 15,23,42;
+  --ink-strong: #0F172A;
+  --navy-800-rgb: 236,231,220;
+  --navy-900-rgb: 244,241,234;
+  --navy-700-rgb: 226,220,204;
+  --gray-900-rgb: 15,23,42;
+
+  /* The light canvas is a warm cream, so dark ink needs a higher alpha than in
+     dark mode to clear WCAG AA for secondary/faint label tiers. */
+  --text-2: rgba(var(--ink-rgb),.80);
+  --text-3: rgba(var(--ink-rgb),.64);
+  --text-faint: rgba(var(--ink-rgb),.60);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: var(--app-vh);
+  min-height: var(--app-vh);
+  overflow: hidden;
+  touch-action: manipulation;
+  scrollbar-color: rgba(148,163,184,.4) transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+::selection {
+  background: rgba(14,165,233,.25);
+  color: inherit;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--navy-900);
+  color: var(--ink-strong);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color .35s ease, color .35s ease;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 20%, rgba(14,165,233,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(99,102,241,.06) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 40% at 50% 50%, rgba(var(--navy-900-rgb),.9) 0%, transparent 100%),
+    linear-gradient(160deg, var(--navy-900) 0%, var(--navy-800) 40%, var(--navy-700) 100%);
+  pointer-events: none;
+  transition: background .35s ease;
+}
+
+button, a, .td-cell, .td-name, .chip-wp, .chip-st, .chip-duty, .chip-wish {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.is-mobile * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.is-drag-selecting {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+/* Keyboard-only focus ring — invisible on mouse click */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+/* --- GLOBAL UI/UX & RESPONSIVE OPTIMIZATIONS --- */
+
+body.is-mobile .nav-btn,
+body.is-mobile .month-label-btn {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+body.is-mobile .overlay {
+  padding-bottom: max(var(--overlay-pad), var(--safe-bottom)) !important;
+}
+
+/* Suppress sticky hover effects on mobile */
+@media (hover: none) and (pointer: coarse) {
+  .nav-btn:hover { background: none; transform: none; }
+  .month-nav:hover { border-color: var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .td-cell:hover::after { opacity: 0; }
+  .td-name:hover { background: var(--bg-a); }
+}
+
+/* Smooth momentum scrolling globally */
+.ap-table-wrap, .dept-table-wrap, #grid-wrapper, .mobile-day-list, .empdash-month-table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Rigorous modal sizing */
+.modal {
+  max-height: min(var(--modal-max-height, calc(100dvh - (2 * var(--overlay-pad)))), calc(100dvh - (2 * var(--overlay-pad)))) !important;
+}
+
+/* --- VIEW TRANSITIONS: month/year navigation choreography --- */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .32s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-vt-direction="forward"]::view-transition-old(root) { animation-name: vt-slide-out-left; }
+html[data-vt-direction="forward"]::view-transition-new(root) { animation-name: vt-slide-in-right; }
+html[data-vt-direction="backward"]::view-transition-old(root) { animation-name: vt-slide-out-right; }
+html[data-vt-direction="backward"]::view-transition-new(root) { animation-name: vt-slide-in-left; }
+
+@keyframes vt-slide-out-left { to { transform: translateX(-2.5%); opacity: 0; } }
+@keyframes vt-slide-in-right { from { transform: translateX(2.5%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes vt-slide-out-right { to { transform: translateX(2.5%); opacity: 0; } }
+@keyframes vt-slide-in-left { from { transform: translateX(-2.5%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Theme toggle: circular reveal expanding from the click origin, driven via
+   the Web Animations API in viewtransition.js. The default UA cross-fade is
+   disabled here so the growing clip-path is the only visible effect. */
+html[data-vt-theme] ::view-transition-old(root),
+html[data-vt-theme] ::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* --- HIGH-CONTRAST PREFERENCE ---
+   Honour the OS "Increase contrast" setting. The dense planning grid relies on
+   hairline borders (rgba ink at .04–.08) to separate days and rows; for users
+   who request more contrast these can dissolve, so firm them up and thicken the
+   keyboard focus ring. Colour-coded cells already carry a text label (CT, MR,
+   …) so meaning never depends on colour alone. */
+@media (prefers-contrast: more) {
+  :root { --border: 1px solid rgba(var(--ink-rgb),.24); }
+  .td-cell,
+  .th-day,
+  .th-day.is-fri,
+  .td-cell.is-fri,
+  .td-name,
+  .tr-stat .td-stat-val,
+  .tr-stat .td-stat-lbl {
+    border-color: rgba(var(--ink-rgb),.24);
+  }
+  :focus-visible { outline-width: 3px; }
+}
