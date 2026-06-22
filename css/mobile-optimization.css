@@ -1,0 +1,157 @@
+/**
+ * RadPlan Mobile Optimization
+ * Unterstützt alle modernen Smartphones und Tablets
+ * iPhone 14 Pro Max: 430x932 CSS pixels, Safe Area: top 59px, bottom 34px
+ */
+
+/* Touch-Geräte: Mindestgröße 44px für alle interaktiven Elemente */
+@media (pointer: coarse) {
+  button,
+  .chip-row > *,
+  .mnav-btn,
+  .mbtn,
+  .modal-x,
+  .nav-btn,
+  .month-label-btn,
+  .hbtn,
+  .td-cell,
+  .td-name,
+  #btn-global-undo,
+  #btn-global-redo,
+  #btn-history,
+  #btn-shortcuts,
+  #btn-print-preview,
+  #btn-settings {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .mday-handle {
+    width: 44px;
+    height: 5px;
+    margin-top: 12px;
+  }
+}
+
+/* Phone Portrait (bis 480px) */
+@media only screen and (max-width: 480px) and (orientation: portrait) and (pointer: coarse) {
+  body.is-mobile {
+    --header-h: 48px;
+    --name-w: 100px;
+    --cell-w: 38px;
+    --row-h: clamp(44px, 5dvh, 56px);
+    --foot-h: 28px;
+    --overlay-pad: 12px;
+  }
+
+  body.is-mobile.is-standalone #app-header {
+    height: calc(var(--header-h) + var(--safe-top));
+    padding-top: var(--safe-top);
+    padding-left: max(var(--safe-left), 8px);
+    padding-right: max(var(--safe-right), 8px);
+  }
+
+  body.is-mobile #grid-wrapper {
+    padding: calc(6px + var(--safe-top)) calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(6px + var(--safe-left));
+  }
+
+  body.is-mobile .hbtn-lbl {
+    display: none;
+  }
+
+  body.is-mobile .hbtn {
+    padding: 8px;
+  }
+}
+
+/* Phone Landscape */
+@media only screen and (orientation: landscape) and (max-height: 480px) and (pointer: coarse) {
+  body.is-mobile {
+    --header-h: 40px;
+    --name-w: 120px;
+    --cell-w: 42px;
+    --row-h: clamp(38px, 4.2dvh, 52px);
+    --overlay-pad: 8px;
+  }
+
+  body.is-mobile.is-standalone #app-header {
+    padding-left: max(var(--safe-left), 8px);
+    padding-right: max(var(--safe-right), 8px);
+  }
+
+  body.is-mobile #grid-wrapper {
+    padding: calc(6px + var(--safe-top)) calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(6px + var(--safe-left));
+  }
+}
+
+/* iOS Bottom Sheet Optimizations */
+@media screen and (max-width: 768px) {
+  .modal-editor,
+  .modal-import,
+  .modal-profile,
+  .modal-emps,
+  .modal-dept,
+  .modal-autoplan,
+  .modal-yearplan,
+  .modal-score-info,
+  .modal-ap-report {
+    max-width: 100% !important;
+    margin-top: auto !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 24px !important;
+    border-top-right-radius: 24px !important;
+    max-height: 90dvh !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    will-change: transform;
+    animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards !important;
+  }
+
+  .overlay {
+    align-items: flex-end !important;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .modal.modal-closing {
+    animation: slideDown 0.25s ease-in forwards !important;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(100%);
+    }
+  }
+}
+
+/* Tablet Anpassungen */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  body.is-mobile {
+    --name-w: 130px;
+    --cell-w: 44px;
+  }
+}
+
+/* Safe Area für Notch-Geräte */
+@supports (padding: max(0px)) {
+  body.is-mobile #app-header {
+    padding-top: max(var(--safe-top), 0px);
+    padding-left: max(var(--safe-left), 0px);
+    padding-right: max(var(--safe-right), 0px);
+  }
+
+  body.is-mobile #grid-wrapper {
+    padding-bottom: max(var(--safe-bottom), 0px);
+  }
+}
