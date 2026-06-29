@@ -18,6 +18,12 @@
   transition: opacity .25s ease, backdrop-filter .25s ease;
 }
 
+/* Das Profil-Modal wird häufig aus dem Mitarbeiter-Modal heraus (per Klick auf
+   einen Namen) geöffnet. Da alle Overlays dieselbe Basis-z-index teilen und das
+   Profil im DOM vor dem Mitarbeiter-Modal steht, würde es sonst dahinter
+   erscheinen – deshalb hier explizit anheben. */
+.overlay#modal-profile { z-index: 1300; }
+
 .modal {
   /* .98 (was .92): keeps the frosted feel while lifting muted sublabel text
      (gray-500) clear of WCAG AA on the modal surface in the dark theme. */
@@ -25,13 +31,13 @@
   backdrop-filter: blur(var(--glass-blur-lg));
   -webkit-backdrop-filter: blur(var(--glass-blur-lg));
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(var(--ink-rgb),.15), 0 0 80px rgba(14,165,233,.04);
+  box-shadow: var(--elev-shadow-3), 0 0 0 1px rgba(var(--ink-rgb),.15), 0 0 80px rgba(var(--accent-rgb),.05);
   overflow: hidden;
   width: min(100%, var(--modal-max-width, 100%));
   max-height: min(var(--modal-max-height, calc(100dvh - (2 * var(--overlay-pad)))), calc(100dvh - (2 * var(--overlay-pad))));
   display: flex;
   flex-direction: column;
-  animation: modalIn .25s cubic-bezier(.34,1.3,.64,1);
+  animation: modalIn var(--dur-3) var(--ease-spring);
   will-change: transform, opacity;
   contain: layout style paint;
   min-width: 0;
@@ -39,6 +45,30 @@
 
 .modal, .modal > * {
   min-width: 0;
+}
+
+/* Modal content panels are intentionally fixed light surfaces in both themes.
+   Pin body/footer ink to dark slate so labels, hints and form text do not turn
+   white and disappear when the app itself is in dark mode. Headers opt back
+   into the theme ink below because they sit on the themed dark/cream chrome. */
+.modal-bd,
+.modal-ft {
+  --ink-rgb: 15,23,42;
+  --ink-strong: #0F172A;
+  --text-1: #0F172A;
+  --text-2: rgba(15,23,42,.88);
+  --text-3: rgba(15,23,42,.76);
+  --text-faint: rgba(15,23,42,.68);
+  color: var(--text-1);
+}
+
+.modal-hd {
+  --ink-rgb: var(--app-ink-rgb);
+  --ink-strong: var(--app-ink-strong);
+  --text-1: var(--app-ink-strong);
+  --text-2: rgba(var(--app-ink-rgb),.88);
+  --text-3: rgba(var(--app-ink-rgb),.76);
+  --text-faint: rgba(var(--app-ink-rgb),.68);
 }
 
 /* Premium glass sheen — a soft diagonal highlight across the top of the
@@ -123,7 +153,7 @@
 
 .modal-hd-sub {
   font-size: 11px;
-  color: rgba(var(--ink-rgb),.35);
+  color: rgba(var(--ink-rgb),.62);
   margin-top: 2px;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -132,7 +162,7 @@
 .modal-x {
   background: none;
   border: none;
-  color: rgba(var(--ink-rgb),.35);
+  color: rgba(var(--ink-rgb),.55);
   font-size: 16px;
   padding: 8px;
   border-radius: var(--radius-xs);
@@ -199,7 +229,13 @@
 }
 
 .preview-box {
-  background: rgba(var(--navy-800-rgb),.75);
+  --ink-rgb: 255,255,255;
+  --ink-strong: #FFFFFF;
+  --text-1: #FFFFFF;
+  --text-2: rgba(255,255,255,.88);
+  --text-3: rgba(255,255,255,.76);
+  --text-faint: rgba(255,255,255,.68);
+  background: rgba(10,21,37,.92);
   backdrop-filter: blur(var(--glass-blur));
   border-radius: var(--radius);
   padding: 14px 18px;
@@ -223,7 +259,7 @@
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb),.35);
+  color: var(--text-3);
   margin-bottom: 4px;
 }
 
@@ -1234,7 +1270,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   font-weight: 500;
-  color: rgba(var(--ink-rgb),.25);
+  color: var(--text-faint);
   letter-spacing: .03em;
 }
 
@@ -1547,7 +1583,7 @@
 }
 
 .ap-report-item {
-  background: rgba(var(--gray-900-rgb),0.6);
+  background: #0F172A;
   border: 1px solid rgba(var(--ink-rgb),0.08);
   border-radius: var(--radius-sm);
   padding: 12px;
@@ -1568,7 +1604,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  color: #94A3B8;
+  color: #CBD5E1;
   background: rgba(var(--ink-rgb),0.1);
   padding: 2px 6px;
   border-radius: 4px;
@@ -1600,7 +1636,7 @@
 
 .ap-report-body {
   font-size: 11.5px;
-  color: #94A3B8;
+  color: #CBD5E1;
   line-height: 1.5;
   padding-left: 8px;
   border-left: 2px solid rgba(var(--ink-rgb),0.1);
@@ -1647,7 +1683,7 @@
 .ap-report-alts {
   margin-top: 6px;
   padding: 8px 10px;
-  background: rgba(var(--gray-900-rgb),0.4);
+  background: #1E293B;
   border: 1px solid rgba(var(--ink-rgb),0.07);
   border-radius: var(--radius-xs);
   display: flex;
@@ -1679,7 +1715,7 @@
 
 .ap-report-alt-score {
   font-family: var(--font-mono);
-  color: #94A3B8;
+  color: #CBD5E1;
   flex-shrink: 0;
 }
 
@@ -2001,82 +2037,110 @@
   color: rgba(var(--ink-rgb),0.6);
 }
 
+/* ---------------------------------------------------------------------------
+   Hilfe-Tooltips (data-tooltip)
+   Gerendert vom globalen JS-Tooltip (js/tooltip.js) als schwebende, an <body>
+   gehängte Sprechblase — dadurch in scrollbaren Modal-Containern (Auswertungs-
+   Hub, Mitarbeitendenbereich) niemals abgeschnitten. Die frühere rein
+   CSS-basierte ::after-Variante ist abgelöst; hier bleibt nur der Cursor-Hinweis.
+--------------------------------------------------------------------------- */
 [data-tooltip] {
-  position: relative;
   cursor: help;
 }
 
-[data-tooltip]::before {
+.rp-tip {
+  position: fixed;
+  z-index: 100000;
+  max-width: 300px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #F8FAFC;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transform-origin: top center;
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  pointer-events: none;
+}
+
+.rp-tip::after {
   content: '';
   position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  border: 6px solid transparent;
-  border-top-color: rgba(15, 23, 42, 0.95);
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
-  z-index: 1001;
+  left: var(--rp-tip-arrow, 50%);
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  background: rgba(15, 23, 42, 0.97);
+  border-right: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  transform: rotate(45deg);
 }
 
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #F8FAFC;
-  padding: 8px 12px;
-  border-radius: 6px;
+.rp-tip.rp-tip-below::after {
+  bottom: auto;
+  top: -6px;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid rgba(148, 163, 184, 0.22);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.rp-tip.rp-tip-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.rp-tip-divider {
+  margin: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rp-tip-interpret {
   font-size: 11px;
-  font-weight: 500;
-  line-height: 1.4;
-  white-space: normal;
-  width: max-content;
-  max-width: 260px;
-  text-align: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
-  z-index: 1000;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  border: 1px solid rgba(var(--ink-rgb),0.1);
+  color: #E2E8F0;
+  line-height: 1.45;
 }
 
-[data-tooltip]:hover::before {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+.rp-tip-interpret-label {
+  font-weight: 700;
+  color: #94A3B8;
 }
 
-[data-tooltip]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-6px);
+.rp-tip-status-optimal {
+  color: #4ADE80;
+  font-weight: 700;
 }
 
-[data-tooltip-pos="bottom"]::before {
-  bottom: auto;
-  top: 100%;
-  border-top-color: transparent;
-  border-bottom-color: rgba(15, 23, 42, 0.95);
-  transform: translateX(-50%) translateY(-8px);
+.rp-tip-status-moderate {
+  color: #FBBF24;
+  font-weight: 700;
 }
 
-[data-tooltip-pos="bottom"]::after {
-  bottom: auto;
-  top: 100%;
-  transform: translateX(-50%) translateY(-4px);
+.rp-tip-status-critical {
+  color: #F87171;
+  font-weight: 700;
 }
 
-[data-tooltip-pos="bottom"]:hover::before {
-  transform: translateX(-50%) translateY(0);
+.rp-tip-status-info {
+  color: #60A5FA;
+  font-weight: 700;
 }
 
-[data-tooltip-pos="bottom"]:hover::after {
-  transform: translateX(-50%) translateY(6px);
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-tip { transition: opacity 0.12s linear; transform: none; }
+  .rp-tip.rp-tip-visible { transform: none; }
 }
 
 @media (max-width: 1200px) {
@@ -3140,8 +3204,12 @@ body.is-mobile #modal-mobile-menu .modal-bd {
     padding: 0 12px;
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
   .yp-tabs::-webkit-scrollbar { display: none; }
+  /* Tabs dürfen nicht schrumpfen, sonst kollidiert der Text — stattdessen
+     scrollt die Leiste horizontal. */
+  .yp-tab { flex: 0 0 auto; }
 
   .yp-body {
     padding: 14px 12px;

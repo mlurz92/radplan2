@@ -1,6 +1,6 @@
 import { MONTHS, VACATION_CODES, getEmpMeta, posColor, getSaxonyHolidaysCached, daysInMonth, isWorkday } from './constants.js';
 import { state, deptTab } from './state.js';
-import { getMonthData, buildProfileStats, buildYearlyStats, getEmployeesForYear } from './model.js';
+import { getMonthData, buildProfileStats, buildYearlyStats, getEmployeesForYear, computeDutyFairness } from './model.js';
 
 export function renderDeptContent() {
   const { year: y, month: m } = state;
@@ -62,7 +62,7 @@ export function renderDeptMonth(y, m) {
     { label: "MR", val: mrCov, pct: pct(mrCov), color: "#1D4ED8", bg: "#DBEAFE" },
     { label: "CT", val: ctCov, pct: pct(ctCov), color: "#C2410C", bg: "#FFEDD5" },
     { label: "D", val: dCov, pct: pct(dCov), color: "#EF4444", bg: "#FEE2E2" },
-    { label: "HG", val: hgCov, pct: pct(hgCov), color: "#0EA5E9", bg: "#E0F2FE" },
+    { label: "HG", val: hgCov, pct: pct(hgCov), color: "#0369A1", bg: "#E0F2FE" },
   ];
   
   let stripHtml = `
@@ -180,6 +180,98 @@ export function renderDeptMonth(y, m) {
   body.innerHTML = stripHtml + tableHtml;
 }
 
+// Signiert ganzzahlig formatieren ("0" neutral, sonst +/−).
+function deptFmtSignedInt(v) {
+  const n = Math.round(v || 0);
+  if (n === 0) return "0";
+  return (n > 0 ? "+" : "−") + Math.abs(n);
+}
+function deptEquityColor(v) {
+  return v >= 85 ? "#15803D" : v >= 70 ? "#854D0E" : "#991B1B";
+}
+
+// Baut die Fairness-Zusammenfassung (Equity-Strip + Soll/Ist-Tabelle) für das Jahr.
+function buildDeptFairnessHtml(year) {
+  let report;
+  try {
+    report = computeDutyFairness(year);
+  } catch (e) {
+    return "";
+  }
+  if (!report || !report.rows || report.rows.length === 0) {
+    return `<div class="dept-empty"><p>Keine Dienstdaten für Fairness-Auswertung</p></div>`;
+  }
+
+  const t = report.team;
+  const stripHtml = `
+    <div class="dept-yr-strip fair-equity-strip">
+      <div class="dept-yr-kpi">
+        <span class="dept-yr-kpi-val" style="color:${deptEquityColor(t.equityTotal)}">${Math.round(t.equityTotal)}</span>
+        <span class="dept-yr-kpi-lbl">Equity gesamt</span>
+      </div>
+      <div class="dept-yr-kpi">
+        <span class="dept-yr-kpi-val" style="color:${deptEquityColor(t.equityWeekend)}">${Math.round(t.equityWeekend)}</span>
+        <span class="dept-yr-kpi-lbl">Equity WE/FT</span>
+      </div>
+      <div class="dept-yr-kpi">
+        <span class="dept-yr-kpi-val">${t.minWeekend}–${t.maxWeekend}</span>
+        <span class="dept-yr-kpi-lbl">Spannweite WE/FT</span>
+      </div>
+    </div>
+  `;
+
+  let rowsHtml = "";
+  report.rows.forEach((r) => {
+    const pc = posColor(r.meta.position);
+    const bdDeltaColor = r.bdDelta > 0 ? "#991B1B" : r.bdDelta < 0 ? "#15803D" : "#94A3B8";
+    rowsHtml += `
+      <tr class="dept-tr fair-tr">
+        <td class="dept-td-name" style="border-left:3px solid ${pc.border}">
+          <span class="dept-emp-name">${r.emp}</span>
+          ${r.meta.position !== "—" ? `<span class="dept-pos-badge" style="background:${pc.bg};color:${pc.fg}">${r.meta.position}</span>` : ""}
+        </td>
+        <td class="dept-td dept-td-num dept-duty-d">${r.bd || "—"}</td>
+        <td class="dept-td dept-td-num dept-duty-hg">${r.hg || "—"}</td>
+        <td class="dept-td dept-td-num">${r.weekendDuties || "—"}</td>
+        <td class="dept-td dept-td-num">${r.holidayDuties || "—"}</td>
+        <td class="dept-td dept-td-num">${r.bdTarget}</td>
+        <td class="dept-td dept-td-num" style="color:${bdDeltaColor}">${deptFmtSignedInt(r.bdDelta)}</td>
+      </tr>
+    `;
+  });
+
+  const tableHtml = `
+    <div class="dept-table-wrap fair-table-wrap">
+      <table class="dept-table fair-table">
+        <thead>
+          <tr>
+            <th class="dept-th-name">Mitarbeitende</th>
+            <th class="dept-th dept-th-d">BD</th>
+            <th class="dept-th dept-th-hg">HG</th>
+            <th class="dept-th">WE/FT</th>
+            <th class="dept-th">Feiertag</th>
+            <th class="dept-th">Soll BD</th>
+            <th class="dept-th">Δ Soll</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot>
+          <tr class="dept-total-row">
+            <td class="dept-td-name dept-total-lbl">Gesamt&ensp;(${report.rows.length}&thinsp;MA)</td>
+            <td class="dept-td dept-td-num dept-total dept-duty-d">${t.totalBd || "—"}</td>
+            <td class="dept-td dept-td-num dept-total dept-duty-hg">${t.totalHg || "—"}</td>
+            <td class="dept-td dept-td-num dept-total">${t.totalWeekend || "—"}</td>
+            <td class="dept-td dept-td-num dept-total">${t.totalHoliday || "—"}</td>
+            <td class="dept-td dept-td-num dept-total" colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+
+  return `<div class="dept-fair-section"><div class="dept-fair-title">Dienst-Fairness · ${year}</div>${stripHtml}${tableHtml}</div>`;
+}
+
 export function renderDeptYear(year) {
   const body = document.getElementById("dept-body");
   if (!body) return;
@@ -246,7 +338,7 @@ export function renderDeptYear(year) {
       </div>
       <div class="dept-yr-kpi">
         <span class="dept-yr-kpi-val">
-          <span style="color:#EF4444">${team.d}</span>&thinsp;/&thinsp;<span style="color:#0EA5E9">${team.hg}</span>
+          <span style="color:#EF4444">${team.d}</span>&thinsp;/&thinsp;<span style="color:#0369A1">${team.hg}</span>
         </span>
         <span class="dept-yr-kpi-lbl">D/HG</span>
       </div>
@@ -317,7 +409,7 @@ export function renderDeptYear(year) {
       </table>
     </div>
   `;
-  
-  body.innerHTML = stripHtml + tableHtml;
+
+  body.innerHTML = stripHtml + tableHtml + buildDeptFairnessHtml(year);
 }
 

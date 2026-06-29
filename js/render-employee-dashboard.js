@@ -24,10 +24,16 @@ import {
   getEmployeeYearCardMetrics,
   matchRoleFilter,
   addEmployee,
-  removeEmployee
+  removeEmployee,
+  computeDutyFairness
 } from './model.js';
 
 import { openProfileModal } from './render-modals.js';
+import { render } from './render-grid.js';
+import { TT } from './analytics/engine.js';
+
+// HTML-attribut-sicheres Escaping für Tooltip-Texte (behandelt Sonderzeichen und leere Werte robust).
+const ttAttr = (s) => s ? `data-tooltip="${String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}"` : '';
 
 export function renderEmployeeDashboard() {
   const { year: y, month: m } = state;
@@ -74,15 +80,15 @@ export function renderEmployeeDashboard() {
   }, { lead: 0, fa: 0, aa: 0, other: 0 });
   
   const kpiItems = [
-    { label: "Mitarbeitende im Jahr", value: employees.length, sub: `${activeCount} mit Aktivität`, tone: "#0EA5E9" },
-    { label: "Aktueller Monatsbestand", value: currentMonthData.employees.length, sub: `${MONTHS[m]} ${y}`, tone: "#22C55E" },
-    { label: "Dienste im Jahr", value: dutyCount, sub: "D + HG kumuliert", tone: "#F97316" },
-    { label: "Rollenmix", value: `${roles.lead}/${roles.fa}/${roles.aa}`, sub: "Leitung · FA · AA", tone: "#A855F7" },
+    { label: "Mitarbeitende im Jahr", value: employees.length, sub: `${activeCount} mit Aktivität`, tone: "#0EA5E9", tip: "Anzahl eindeutiger Mitarbeitender mit Plandaten im Jahr. „mit Aktivität“ = Personen mit mindestens einem aktiven Monat." },
+    { label: "Aktueller Monatsbestand", value: currentMonthData.employees.length, sub: `${MONTHS[m]} ${y}`, tone: "#22C55E", tip: "Anzahl der im aktuell gewählten Monat eingeplanten Mitarbeitenden." },
+    { label: "Dienste im Jahr", value: dutyCount, sub: "D + HG kumuliert", tone: "#F97316", tip: TT.duty + " Summe aller Bereitschafts- (D) und Hintergrunddienste (HG) über das ganze Jahr." },
+    { label: "Rollenmix", value: `${roles.lead}/${roles.fa}/${roles.aa}`, sub: "Leitung · FA · AA", tone: "#A855F7", tip: "Verteilung nach Rolle: Leitung (CA/LOA/OA) · Fachärzte (FA) · Assistenzärzte (AA)." },
   ];
-  
+
   summaryEl.innerHTML = kpiItems.map((item) => `
     <article class="empdash-kpi">
-      <div class="empdash-kpi-label">${item.label}</div>
+      <div class="empdash-kpi-label" ${ttAttr(item.tip)}>${item.label}</div>
       <div class="empdash-kpi-value" style="color:${item.tone}">${item.value}</div>
       <div class="empdash-kpi-sub">${item.sub}</div>
     </article>
@@ -192,21 +198,21 @@ export function renderEmployeeDashboard() {
             </div>
           </div>
           <div class="empdash-card-stats">
-            <span><strong>${item.ys.totals.totalActive || 0}</strong><small>Aktiv</small></span>
-            <span><strong style="color:#EF4444">${item.ys.totals.dutyD || 0}</strong><small>D</small></span>
-            <span><strong style="color:#0EA5E9">${item.ys.totals.dutyHG || 0}</strong><small>HG</small></span>
-            <span><strong style="color:#7C3AED">${vac}</strong><small>Urlaub</small></span>
-            <span><strong style="color:${sick>0?"#DC2626":"#64748B"}">${sick}</strong><small>Krank</small></span>
-            <span><strong style="color:#3730A3">${fza}</strong><small>FZA</small></span>
+            <span><strong>${item.ys.totals.totalActive || 0}</strong><small ${ttAttr("Aktive Arbeitstage im Jahr (Tage mit Arbeitsplatz oder Dienst).")}>Aktiv</small></span>
+            <span><strong style="color:#EF4444">${item.ys.totals.dutyD || 0}</strong><small ${ttAttr(TT.bd)}>D</small></span>
+            <span><strong style="color:#0369A1">${item.ys.totals.dutyHG || 0}</strong><small ${ttAttr(TT.hg)}>HG</small></span>
+            <span><strong style="color:#7C3AED">${vac}</strong><small ${ttAttr(TT.vac)}>Urlaub</small></span>
+            <span><strong style="color:${sick>0?"#DC2626":"#64748B"}">${sick}</strong><small ${ttAttr(TT.sick)}>Krank</small></span>
+            <span><strong style="color:#3730A3">${fza}</strong><small ${ttAttr(TT.fza)}>FZA</small></span>
           </div>
-          <div class="empdash-card-cov-wrap">
+          <div class="empdash-card-cov-wrap" ${ttAttr("Abdeckung: Anteil der erforderlichen Werktage im Jahr, die diese Person tatsächlich aktiv war.")}>
             <div class="empdash-card-cov-bar" title="${item.coverage}% Abdeckung">
               <div class="empdash-card-cov-fill" style="width:${item.coverage}%;background:${covColor}"></div>
             </div>
             <span class="empdash-card-cov-pct" style="color:${covColor}">${item.coverage}%</span>
           </div>
           <div class="empdash-card-foot">
-            <span>${item.activeMonths}/12 Monate aktiv</span>
+            <span ${ttAttr(TT.empActiveMonths)}>${item.activeMonths}/12 Monate aktiv</span>
             <span class="empdash-card-wps">${topWP || '<span style="color:#CBD5E1">—</span>'}</span>
           </div>
         </div>
@@ -214,40 +220,20 @@ export function renderEmployeeDashboard() {
     }).join("");
     
     gridEl.querySelectorAll("[data-emp]").forEach((card) => {
-      card.addEventListener("click", (e) => {
-        // If clicking the name link → open profile
-        if (e.target.closest("[data-open-profile]")) {
-          const name = e.target.closest("[data-open-profile]").dataset.openProfile;
-          openProfileModal(name);
-          return;
-        }
-        dash.selectedEmp = card.dataset.emp;
-        renderEmployeeDashboard();
+      // Ein Klick irgendwo auf die Karte öffnet den Person-Screen für diese Person.
+      card.addEventListener("click", () => {
+        openProfileModal(card.dataset.emp);
       });
       card.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          dash.selectedEmp = card.dataset.emp;
-          renderEmployeeDashboard();
+          openProfileModal(card.dataset.emp);
         }
       });
     });
   }
-  
-  if (!dash.selectedEmp) {
-    detailEl.innerHTML = `<div class="empdash-empty">Bitte eine Person auswählen.</div>`;
-    if (detailSub) {
-      detailSub.textContent = "Bitte eine Person auswählen.";
-    }
-    return;
-  }
-  
-  renderEmployeeDetailDashboard(dash.selectedEmp, y);
-  
-  if (detailSub) {
-    const viewName = dash.detailView === "months" ? "Monatsverlauf" : dash.detailView === "calendar" ? "Jahreskalender" : "Verwaltung";
-    detailSub.textContent = `${dash.selectedEmp} · Kalenderjahr ${y} · Detailansicht ${viewName}`;
-  }
+  // Die Personen-Detailansicht lebt jetzt im Person-Screen (eigene Tabs) und wird
+  // durch openProfileModal()/applyPersonTab() gerendert – hier nicht mehr nötig.
 }
 
 function getRangeMonths(range, year, month, customStart, customEnd) {
@@ -373,35 +359,37 @@ function renderEmployeeTeamAnalytics(teamPanelEl, teamControlsEl) {
   
   const rows = [...perEmp.values()].filter((x) => x.active || x.d || x.hg || x.vac || x.sick || x.required);
   rows.sort((a, b) => (b.active - a.active) || (b.d + b.hg - (a.d + a.hg)));
-  const topRows = rows.slice(0, 8);
+  // Vollständige Mitarbeitendenliste anzeigen (zuvor auf 8 Zeilen begrenzt, was
+  // Personen mit geringerer Aktivität – z. B. Assistenzärzte – unsichtbar machte).
+  const topRows = rows;
   const teamCoverage = agg.required > 0 ? Math.round((agg.active / agg.required) * 100) : 0;
   const busiest = rows[0]?.emp || "—";
   const dutyLeader = rows.slice().sort((a, b) => (b.d + b.hg) - (a.d + a.hg))[0]?.emp || "—";
   
   teamPanelEl.innerHTML = `
     <div class="empdash-team-kpis">
-      <article class="empdash-kpi"><div class="empdash-kpi-label">Zeitraum</div><div class="empdash-kpi-value" style="color:#0EA5E9">${rangeMonths.length} M</div><div class="empdash-kpi-sub">${MONTHS[rangeMonths[0].month]} ${rangeMonths[0].year} – ${MONTHS[rangeMonths.at(-1).month]} ${rangeMonths.at(-1).year}</div></article>
-      <article class="empdash-kpi"><div class="empdash-kpi-label">Team-Abdeckung</div><div class="empdash-kpi-value" style="color:${teamCoverage >= 80 ? "#22C55E" : teamCoverage >= 60 ? "#F59E0B" : "#EF4444"}">${teamCoverage}%</div><div class="empdash-kpi-sub">${agg.active} aktiv / ${agg.required} erforderlich</div></article>
-      <article class="empdash-kpi"><div class="empdash-kpi-label">Dienste D/HG</div><div class="empdash-kpi-value" style="color:#F97316">${agg.d}/${agg.hg}</div><div class="empdash-kpi-sub">Gesamt im Zeitraum</div></article>
-      <article class="empdash-kpi"><div class="empdash-kpi-label">Ausfalltage</div><div class="empdash-kpi-value" style="color:#A855F7">${agg.vac + agg.sick + agg.fza + agg.wb}</div><div class="empdash-kpi-sub">U/K/FZA/WB kumuliert</div></article>
+      <article class="empdash-kpi"><div class="empdash-kpi-label" ${ttAttr(TT.range)}>Zeitraum</div><div class="empdash-kpi-value" style="color:#0EA5E9">${rangeMonths.length} M</div><div class="empdash-kpi-sub">${MONTHS[rangeMonths[0].month]} ${rangeMonths[0].year} – ${MONTHS[rangeMonths.at(-1).month]} ${rangeMonths.at(-1).year}</div></article>
+      <article class="empdash-kpi"><div class="empdash-kpi-label" ${ttAttr("Team-Abdeckung: Anteil der erforderlichen Arbeitstage im Zeitraum, die das gesamte Team tatsächlich aktiv abgedeckt hat (aktiv / erforderlich).")}>Team-Abdeckung</div><div class="empdash-kpi-value" style="color:${teamCoverage >= 80 ? "#22C55E" : teamCoverage >= 60 ? "#F59E0B" : "#EF4444"}">${teamCoverage}%</div><div class="empdash-kpi-sub">${agg.active} aktiv / ${agg.required} erforderlich</div></article>
+      <article class="empdash-kpi"><div class="empdash-kpi-label" ${ttAttr(TT.bd + " / " + TT.hg)}>Dienste D/HG</div><div class="empdash-kpi-value" style="color:#F97316">${agg.d}/${agg.hg}</div><div class="empdash-kpi-sub">Gesamt im Zeitraum</div></article>
+      <article class="empdash-kpi"><div class="empdash-kpi-label" ${ttAttr("Ausfalltage: Summe aller Abwesenheiten im Zeitraum – Urlaub (U), Krank (K/KK), Freizeitausgleich (FZA) und Weiterbildung (WB).")}>Ausfalltage</div><div class="empdash-kpi-value" style="color:#A855F7">${agg.vac + agg.sick + agg.fza + agg.wb}</div><div class="empdash-kpi-sub">U/K/FZA/WB kumuliert</div></article>
     </div>
     <div class="empdash-team-insights">
-      <div class="empdash-team-note"><strong>Top Aktivität:</strong> ${busiest}</div>
-      <div class="empdash-team-note"><strong>Dienst-Fokus:</strong> ${dutyLeader}</div>
-      <div class="empdash-team-note"><strong>Offene Abdeckung:</strong> ${agg.uncovered} Tage</div>
+      <div class="empdash-team-note" ${ttAttr("Person mit den meisten aktiven Arbeitstagen im Zeitraum.")}><strong>Top Aktivität:</strong> ${busiest}</div>
+      <div class="empdash-team-note" ${ttAttr("Person mit den meisten Diensten (D+HG) im Zeitraum.")}><strong>Dienst-Fokus:</strong> ${dutyLeader}</div>
+      <div class="empdash-team-note" ${ttAttr("Erforderliche Arbeitstage im Zeitraum, die nicht durch eine aktive Einplanung abgedeckt waren.")}><strong>Offene Abdeckung:</strong> ${agg.uncovered} Tage</div>
     </div>
     <div class="dept-table-wrap">
       <table class="dept-table">
         <thead>
           <tr>
-            <th class="dept-th-name">Mitarbeitende</th>
-            <th class="dept-th">Aktiv</th>
-            <th class="dept-th dept-th-d">D</th>
-            <th class="dept-th dept-th-hg">HG</th>
-            <th class="dept-th dept-th-vac">Urlaub</th>
-            <th class="dept-th dept-th-sick">Krank</th>
-            <th class="dept-th dept-th-offen">Offen</th>
-            <th class="dept-th">Abdeckung</th>
+            <th class="dept-th-name" ${ttAttr("Mitarbeitende – Klick auf eine Zeile öffnet das Personenprofil.")}>Mitarbeitende</th>
+            <th class="dept-th" ${ttAttr("Aktive Arbeitstage im Zeitraum (Tage mit Arbeitsplatz oder Dienst).")}>Aktiv</th>
+            <th class="dept-th dept-th-d" ${ttAttr(TT.bd)}>D</th>
+            <th class="dept-th dept-th-hg" ${ttAttr(TT.hg)}>HG</th>
+            <th class="dept-th dept-th-vac" ${ttAttr(TT.vac)}>Urlaub</th>
+            <th class="dept-th dept-th-sick" ${ttAttr(TT.sick)}>Krank</th>
+            <th class="dept-th dept-th-offen" ${ttAttr("Offen: erforderliche Arbeitstage dieser Person im Zeitraum, die nicht aktiv abgedeckt waren.")}>Offen</th>
+            <th class="dept-th" ${ttAttr("Abdeckung: Anteil der erforderlichen Arbeitstage, die diese Person tatsächlich aktiv war (aktiv / erforderlich).")}>Abdeckung</th>
           </tr>
         </thead>
         <tbody>
@@ -427,10 +415,121 @@ function renderEmployeeTeamAnalytics(teamPanelEl, teamControlsEl) {
   
   teamPanelEl.querySelectorAll("[data-team-emp]").forEach((row) => {
     row.addEventListener("click", () => {
-      state.employeeDashboard.selectedEmp = row.dataset.teamEmp;
-      renderEmployeeDashboard();
-      const detailPanel = document.getElementById("emp-detail-panel");
-      detailPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openProfileModal(row.dataset.teamEmp);
+    });
+  });
+
+  // ===== Dienst-Fairness (FTE-gewichtete Verteilung von BD/HG, WE/FT) =====
+  renderTeamFairnessBlock(teamPanelEl, year);
+}
+
+// Signiert formatieren, max. 1 Nachkommastelle, "0" bleibt neutral ohne Vorzeichen.
+function fmtSignedFloat(v) {
+  const n = Math.round((v || 0) * 10) / 10;
+  if (n === 0) return "0";
+  const s = (Math.round(Math.abs(n) * 10) / 10).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+  return (n > 0 ? "+" : "−") + s;
+}
+function fmtSignedInt(v) {
+  const n = Math.round(v || 0);
+  if (n === 0) return "0";
+  return (n > 0 ? "+" : "−") + Math.abs(n);
+}
+function equityColor(v) {
+  return v >= 85 ? "#22C55E" : v >= 70 ? "#F59E0B" : "#EF4444";
+}
+
+// Hängt den Fairness-Analyseblock an das Team-Panel an, ohne bestehende Inhalte zu entfernen.
+function renderTeamFairnessBlock(teamPanelEl, year) {
+  let report;
+  try {
+    report = computeDutyFairness(year);
+  } catch (e) {
+    return;
+  }
+  if (!report || !report.rows || report.rows.length === 0) {
+    teamPanelEl.insertAdjacentHTML("beforeend", `
+      <div class="empdash-section-title">Dienst-Fairness · ${year}</div>
+      <div class="empdash-empty">Keine Dienstdaten für ${year} vorhanden.</div>
+    `);
+    return;
+  }
+
+  const t = report.team;
+  const equityCards = [
+    { label: "Equity-Index gesamt", value: Math.round(t.equityTotal), unit: "", tone: equityColor(t.equityTotal), sub: "100 = perfekt fair", tip: TT.equityTotal },
+    { label: "Wochenend-Equity", value: Math.round(t.equityWeekend), unit: "", tone: equityColor(t.equityWeekend), sub: "WE/FT-Dienste", tip: "Equity-Index 0–100 nur für Wochenend- und Feiertagsdienste (WE/FT) – die belastendsten Einsätze. 100 = perfekt gleichmäßige Verteilung." },
+    { label: "Spannweite gesamt", value: `${t.minTotal}–${t.maxTotal}`, unit: "", tone: "#0EA5E9", sub: `Differenz ${t.spreadTotal}`, tip: TT.spread + " Hier: kleinste bis größte Gesamtdienstzahl einer Person im Team." },
+    { label: "Variationskoeffizient", value: Math.round(t.cvTotal), unit: "%", tone: t.cvTotal <= 15 ? "#22C55E" : t.cvTotal <= 30 ? "#F59E0B" : "#EF4444", sub: "Streuung Gesamtlast", tip: "Variationskoeffizient: relative Streuung der Gesamtdienstlast (Standardabweichung / Mittelwert). Niedriger = gleichmäßiger verteilt." },
+  ];
+
+  const equityHtml = equityCards.map((c) => `
+    <article class="empdash-kpi">
+      <div class="empdash-kpi-label" ${ttAttr(c.tip)}>${c.label}</div>
+      <div class="empdash-kpi-value" style="color:${c.tone}">${c.value}${c.unit}</div>
+      <div class="empdash-kpi-sub">${c.sub}</div>
+    </article>
+  `).join("");
+
+  // Skala für die Abweichungsbalken: größter absoluter Fair-Δ-Wert.
+  const maxAbsDev = Math.max(1, ...report.rows.map((r) => Math.abs(r.totalDev || 0)));
+
+  const rowsHtml = report.rows.map((r) => {
+    const statusLabel = r.status === "over" ? "Über" : r.status === "under" ? "Unter" : "Fair";
+    const devColor = r.status === "over" ? "#EF4444" : r.status === "under" ? "#2563EB" : "#94A3B8";
+    const dev = r.totalDev || 0;
+    const w = Math.min(50, (Math.abs(dev) / maxAbsDev) * 50);
+    const barFill = dev >= 0
+      ? `<span class="fair-dev-fill" style="left:50%;width:${w}%;background:#EF4444"></span>`
+      : `<span class="fair-dev-fill" style="right:50%;width:${w}%;background:#2563EB"></span>`;
+    const bdDeltaColor = r.bdDelta > 0 ? "#EF4444" : r.bdDelta < 0 ? "#22C55E" : "#94A3B8";
+    return `
+      <tr class="dept-tr fair-tr" data-fair-emp="${r.emp}">
+        <td class="dept-td-name"><span class="dept-emp-name">${r.emp}</span></td>
+        <td class="dept-td dept-td-num dept-duty-d">${r.bd || "—"}</td>
+        <td class="dept-td dept-td-num dept-duty-hg">${r.hg || "—"}</td>
+        <td class="dept-td dept-td-num">${r.total || "—"}</td>
+        <td class="dept-td dept-td-num">${r.weekendDuties || "—"}</td>
+        <td class="dept-td dept-td-num">${r.bdTarget}</td>
+        <td class="dept-td dept-td-num" style="color:${bdDeltaColor}">${fmtSignedInt(r.bdDelta)}</td>
+        <td class="dept-td dept-td-num" style="color:${devColor};font-weight:700">${fmtSignedFloat(dev)}</td>
+        <td class="dept-td">
+          <div class="fair-dev-bar"><span class="fair-dev-zero"></span>${barFill}</div>
+        </td>
+        <td class="dept-td"><span class="fair-status-pill fair-status-${r.status}" style="color:${devColor}">${statusLabel}</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  teamPanelEl.insertAdjacentHTML("beforeend", `
+    <div class="empdash-section-title">Dienst-Fairness · ${year}</div>
+    <div class="empdash-team-kpis fair-equity-grid">
+      ${equityHtml}
+    </div>
+    <div class="dept-table-wrap">
+      <table class="dept-table fair-table">
+        <thead>
+          <tr>
+            <th class="dept-th-name" ${ttAttr("Mitarbeitende – Klick auf eine Zeile öffnet das Personenprofil.")}>Mitarbeitende</th>
+            <th class="dept-th dept-th-d" ${ttAttr(TT.bd)}>BD</th>
+            <th class="dept-th dept-th-hg" ${ttAttr(TT.hg)}>HG</th>
+            <th class="dept-th" ${ttAttr("Gesamtzahl der Dienste dieser Person im Jahr (BD + HG).")}>Gesamt</th>
+            <th class="dept-th" ${ttAttr(TT.weekendDuties)}>WE/FT</th>
+            <th class="dept-th" ${ttAttr(TT.soll + " Bezieht sich hier auf die Bereitschaftsdienste (BD).")}>Soll BD</th>
+            <th class="dept-th" ${ttAttr(TT.delta + " Hier: Bereitschaftsdienste (BD) − Soll BD.")}>Δ Soll</th>
+            <th class="dept-th" ${ttAttr("Fair-Δ: FTE-gewichtete Abweichung der Gesamtdienstlast vom fairen Anteil. Positiv (rot) = trägt mehr, negativ (blau) = trägt weniger als fair.")}>Fair-Δ</th>
+            <th class="dept-th" ${ttAttr("Verteilung: grafische Darstellung der Fair-Δ-Abweichung relativ zum fairen Mittel (links/blau = unter, rechts/rot = über).")}>Verteilung</th>
+            <th class="dept-th" ${ttAttr("Status: Über = überdurchschnittlich belastet, Unter = unterdurchschnittlich, Fair = im gerechten Bereich.")}>Status</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `);
+
+  teamPanelEl.querySelectorAll("[data-fair-emp]").forEach((row) => {
+    row.addEventListener("click", () => {
+      openProfileModal(row.dataset.fairEmp);
     });
   });
 }
@@ -511,16 +610,16 @@ export function renderEmployeeDetailDashboard(emp, year) {
         <table class="empdash-month-table">
           <thead>
             <tr>
-              <th>Monat</th>
-              <th title="Aktive Arbeitstage">Aktiv</th>
-              <th title="Urlaub (U/ZU/SU/§15c)" class="empdash-col-vac">Urlaub</th>
-              <th title="Krank (K/KK)" class="empdash-col-sick">Krank</th>
-              <th title="Freizeitausgleich">FZA</th>
-              <th title="Weiterbildung">WB</th>
-              <th title="Frei (F-Tage)">Frei</th>
-              <th title="Bereitschaftsdienst" class="empdash-col-d">D</th>
-              <th title="Hintergrunddienst" class="empdash-col-hg">HG</th>
-              <th title="Abdeckung der erforderlichen Werktage">Abdeckung</th>
+              <th ${ttAttr("Kalendermonat des Jahres.")}>Monat</th>
+              <th title="Aktive Arbeitstage" ${ttAttr("Aktive Arbeitstage im Monat (Tage mit Arbeitsplatz oder Dienst).")}>Aktiv</th>
+              <th title="Urlaub (U/ZU/SU/§15c)" class="empdash-col-vac" ${ttAttr(TT.vac + " Umfasst U, ZU, SU und §15c.")}>Urlaub</th>
+              <th title="Krank (K/KK)" class="empdash-col-sick" ${ttAttr(TT.sick)}>Krank</th>
+              <th title="Freizeitausgleich" ${ttAttr(TT.fza)}>FZA</th>
+              <th title="Weiterbildung" ${ttAttr(TT.wb)}>WB</th>
+              <th title="Frei (F-Tage)" ${ttAttr("Freie Tage (F): geplant dienst- und arbeitsfrei.")}>Frei</th>
+              <th title="Bereitschaftsdienst" class="empdash-col-d" ${ttAttr(TT.bd)}>D</th>
+              <th title="Hintergrunddienst" class="empdash-col-hg" ${ttAttr(TT.hg)}>HG</th>
+              <th title="Abdeckung der erforderlichen Werktage" ${ttAttr("Abdeckung: Anteil der erforderlichen Werktage des Monats (Werktage minus Abwesenheiten), die aktiv abgedeckt wurden.")}>Abdeckung</th>
             </tr>
           </thead>
           <tbody>
@@ -665,31 +764,31 @@ export function renderEmployeeDetailDashboard(emp, year) {
         <div class="empdash-analyse-kpis">
           <div class="empdash-akpi" style="--c:#1D4ED8">
             <div class="empdash-akpi-val">${ys.totals.totalActive}</div>
-            <div class="empdash-akpi-lbl">Aktive Tage</div>
+            <div class="empdash-akpi-lbl" ${ttAttr("Aktive Arbeitstage im Jahr (Tage mit Arbeitsplatz oder Dienst).")}>Aktive Tage</div>
           </div>
           <div class="empdash-akpi" style="--c:${covColor}">
             <div class="empdash-akpi-val">${totalCov}%</div>
-            <div class="empdash-akpi-lbl">Abdeckung</div>
+            <div class="empdash-akpi-lbl" ${ttAttr("Abdeckung: Anteil der erforderlichen Werktage im Jahr (Werktage minus Abwesenheiten), die aktiv abgedeckt wurden.")}>Abdeckung</div>
           </div>
           <div class="empdash-akpi" style="--c:#EF4444">
             <div class="empdash-akpi-val">${totalDuties}</div>
-            <div class="empdash-akpi-lbl">Dienste gesamt</div>
+            <div class="empdash-akpi-lbl" ${ttAttr(TT.duty + " Summe aus D und HG im Jahr.")}>Dienste gesamt</div>
           </div>
           <div class="empdash-akpi" style="--c:#7C3AED">
             <div class="empdash-akpi-val">${totalAbsences}</div>
-            <div class="empdash-akpi-lbl">Abwesenheiten</div>
+            <div class="empdash-akpi-lbl" ${ttAttr("Abwesenheitstage im Jahr gesamt: Urlaub, Krank, FZA, Weiterbildung und Frei (F).")}>Abwesenheiten</div>
           </div>
         </div>
 
         <div class="empdash-analyse-charts">
           <div class="empdash-chart-card">
-            <div class="empdash-chart-title">Monatsverlauf Aktivität</div>
+            <div class="empdash-chart-title" ${ttAttr("Balken: aktive Arbeitstage je Monat. Linie: Dienste (D+HG) je Monat.")}>Monatsverlauf Aktivität</div>
             <div class="empdash-chart-body" style="position:relative;height:160px">
               <canvas id="empdash-bar-canvas" aria-hidden="true"></canvas>
             </div>
           </div>
           <div class="empdash-chart-card">
-            <div class="empdash-chart-title">Arbeitsplatz-Verteilung (Jahr)</div>
+            <div class="empdash-chart-title" ${ttAttr("Verteilung der zugewiesenen Arbeitsplätze/Einsatzorte über das Jahr (Tage je Code, Top-Codes).")}>Arbeitsplatz-Verteilung (Jahr)</div>
             <div class="empdash-chart-body empdash-chart-pie-wrap">
               ${topWP.length ? `<canvas id="empdash-pie-canvas" aria-hidden="true"></canvas>
               <div class="empdash-pie-legend">
@@ -709,7 +808,7 @@ export function renderEmployeeDetailDashboard(emp, year) {
 
         <div class="empdash-analyse-breakdown">
           <div class="empdash-breakdown-card">
-            <div class="empdash-chart-title">Dienst-Verhältnis</div>
+            <div class="empdash-chart-title" ${ttAttr("Anteil von Bereitschaftsdienst (D) zu Hintergrunddienst (HG) an allen Diensten des Jahres.")}>Dienst-Verhältnis</div>
             ${totalDuties > 0 ? `
               <div class="empdash-duty-ratio">
                 <div class="empdash-duty-bar">
@@ -718,13 +817,13 @@ export function renderEmployeeDetailDashboard(emp, year) {
                 </div>
                 <div class="empdash-duty-ratio-labels">
                   <span style="color:#EF4444">D: ${ys.totals.dutyD} (${Math.round((ys.totals.dutyD/totalDuties)*100)}%)</span>
-                  <span style="color:#0EA5E9">HG: ${ys.totals.dutyHG} (${Math.round((ys.totals.dutyHG/totalDuties)*100)}%)</span>
+                  <span style="color:#0369A1">HG: ${ys.totals.dutyHG} (${Math.round((ys.totals.dutyHG/totalDuties)*100)}%)</span>
                 </div>
               </div>
             ` : '<p class="empdash-mini-empty">Keine Dienste eingetragen</p>'}
           </div>
           <div class="empdash-breakdown-card">
-            <div class="empdash-chart-title">Abwesenheits-Aufschlüsselung</div>
+            <div class="empdash-chart-title" ${ttAttr("Aufschlüsselung der Abwesenheitstage im Jahr nach Art (Urlaub, Krank, FZA, Weiterbildung, Frei).")}>Abwesenheits-Aufschlüsselung</div>
             <div class="empdash-abs-list">
               ${[
                 { lbl: "Urlaub", val: ys.totals.vacationDays, color: "#7C3AED" },
@@ -749,6 +848,11 @@ export function renderEmployeeDetailDashboard(emp, year) {
     `;
 
     detailEl.querySelector('[data-open-profile]')?.addEventListener('click', () => openProfileModal(emp));
+
+    // Sanftes Einblenden des neu gerenderten Detailbereichs (Task 8).
+    detailEl.classList.remove('motion-fade-in');
+    void detailEl.offsetWidth;
+    detailEl.classList.add('motion-fade-in');
 
     // Render bar chart
     const barCanvas = document.getElementById('empdash-bar-canvas');
@@ -848,7 +952,7 @@ export function renderEmployeeDetailDashboard(emp, year) {
   detailEl.innerHTML = `
     <div class="empdash-admin-layout">
       <div class="empdash-admin-card">
-        <div class="empdash-admin-title">Ausgewählte Person</div>
+        <div class="empdash-admin-title" ${ttAttr("Stammdaten der gewählten Person und Aktion zum Hinzufügen/Entfernen im aktuellen Monat.")}>Ausgewählte Person</div>
         <div class="empdash-admin-meta">
           <span class="empdash-pos" style="background:${pc.bg};color:${pc.fg}">${meta.position}</span>
           <span>${meta.posLabel}</span>
@@ -861,7 +965,7 @@ export function renderEmployeeDetailDashboard(emp, year) {
         </div>
       </div>
       <div class="empdash-admin-card">
-        <div class="empdash-admin-title">Monatsliste ${MONTHS[state.month]} ${state.year}</div>
+        <div class="empdash-admin-title" ${ttAttr("Alle im gewählten Monat eingeplanten Mitarbeitenden. Personen können entfernt oder über das Eingabefeld neu hinzugefügt werden.")}>Monatsliste ${MONTHS[state.month]} ${state.year}</div>
         <div class="emp-list-inner" id="emp-list">${monthList}</div>
         <div class="emp-add-row">
           <input type="text" class="text-input" id="emp-input" placeholder="Name (z.B. Dr. Müller)…" autocomplete="off" spellcheck="false" maxlength="80" aria-label="Name des neuen Mitarbeiters eingeben">
@@ -890,19 +994,18 @@ export function renderEmployeeDetailDashboard(emp, year) {
       addEmployee(state.year, state.month, emp);
     }
     render();
-    renderEmployeeDashboard();
+    renderEmployeeDetailDashboard(emp, year);
   });
-  
+
   document.getElementById('emp-add-btn')?.addEventListener('click', () => {
     const input = document.getElementById('emp-input');
     const name = input.value.trim();
     if (!name) return;
     addEmployee(state.year, state.month, name);
     input.value = '';
-    state.employeeDashboard.selectedEmp = name;
     render();
-    renderEmployeeDashboard();
-    input.focus();
+    renderEmployeeDetailDashboard(emp, year);
+    document.getElementById('emp-input')?.focus();
   });
   
   document.getElementById('emp-input')?.addEventListener('keydown', (e) => {

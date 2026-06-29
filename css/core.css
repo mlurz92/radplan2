@@ -11,17 +11,17 @@
   --accent-xs: #E8F8FF;
   --accent-dim: rgba(14,165,233,.10);
   --white: #FFFFFF;
-  --gray-50: #F8FAFC;
-  --gray-100: #F1F5F9;
-  --gray-150: #E9EFF6;
-  --gray-200: #E2E8F0;
-  --gray-300: #CBD5E1;
+  --gray-50: #1E293B;
+  --gray-100: #334155;
+  --gray-150: #3F4E64;
+  --gray-200: #475569;
+  --gray-300: #64748B;
   --gray-400: #94A3B8;
-  --gray-500: #64748B;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1E293B;
-  --gray-900: #0F172A;
+  --gray-500: #CBD5E1;
+  --gray-600: #E2E8F0;
+  --gray-700: #E9EFF6;
+  --gray-800: #F1F5F9;
+  --gray-900: #F8FAFC;
   --red: #EF4444;
   --red-dark: #B91C1C;
   --red-lt: #FEF2F2;
@@ -76,6 +76,8 @@
      the stylesheet, so every "glass" surface keeps its depth in both themes. */
   --ink-rgb: 255,255,255;
   --ink-strong: #FFFFFF;
+  --app-ink-rgb: 255,255,255;
+  --app-ink-strong: #FFFFFF;
   --navy-800-rgb: 10,21,37;
   --navy-900-rgb: 6,13,22;
   --navy-700-rgb: 15,29,50;
@@ -94,9 +96,82 @@
      that sits on the themed canvas (the gray scale stays correct for fixed
      light surfaces such as the dept/year tables). */
   --text-1: var(--ink-strong);
-  --text-2: rgba(var(--ink-rgb),.76);
-  --text-3: rgba(var(--ink-rgb),.58);
-  --text-faint: rgba(var(--ink-rgb),.48);
+  --text-2: rgba(var(--ink-rgb),.84);
+  --text-3: rgba(var(--ink-rgb),.70);
+  --text-faint: rgba(var(--ink-rgb),.62);
+
+  /* ============================================================
+     DESIGN-TOKEN-ARCHITEKTUR (Task 18)
+     Zwei Ebenen: PRIMITIVE Tokens (rohe Werte, themenunabhängig)
+     und SEMANTIC Tokens (Bedeutung, themenbewusst). Komponenten
+     referenzieren AUSSCHLIESSLICH semantische Tokens, sodass ein
+     Theme-Wechsel an genau einer Stelle erfolgt.
+     ============================================================ */
+
+  /* --- PRIMITIVE: Akzent als RGB-Tripel (für rgba() in jeder Deckkraft) --- */
+  --accent-rgb: 14,165,233;
+  --accent-2-rgb: 99,102,241;          /* Indigo-Sekundärakzent */
+  --accent-strong: #38BDF8;
+  --accent-soft: rgba(var(--accent-rgb),.14);
+  --accent-soft-hover: rgba(var(--accent-rgb),.22);
+  --accent-ring: rgba(var(--accent-rgb),.45);
+  --accent-grad: linear-gradient(135deg, #0EA5E9 0%, #6366F1 100%);
+
+  /* --- SEMANTIC: status hues (single source of truth) --- */
+  --hue-success: 152;
+  --hue-warning: 32;
+  --hue-danger: 0;
+  --hue-info: 199;
+  --c-success: #22C55E;
+  --c-warning: #F59E0B;
+  --c-danger: #EF4444;
+  --c-info: #38BDF8;
+
+  /* ============================================================
+     ELEVATION / MATERIAL-TIEFE (Task 3)
+     Eine durchgehende Höhenleiter Surface 0..3. Jede Stufe hebt
+     sich durch (a) hellere Glasfüllung, (b) festere Border,
+     (c) oberen Innen-Glanz (--elev-hi) und (d) stärkeren Schatten
+     vom darunterliegenden Material ab. Alle Werte basieren auf
+     --ink-rgb und sind damit automatisch themenbewusst.
+     ============================================================ */
+  --elev-0-bg: rgba(var(--ink-rgb),.02);
+  --elev-1-bg: rgba(var(--ink-rgb),.045);
+  --elev-2-bg: rgba(var(--ink-rgb),.07);
+  --elev-3-bg: rgba(var(--ink-rgb),.10);
+  --elev-1-bg-hover: rgba(var(--ink-rgb),.075);
+  --elev-2-bg-hover: rgba(var(--ink-rgb),.105);
+
+  --elev-border: rgba(var(--ink-rgb),.08);
+  --elev-border-1: rgba(var(--ink-rgb),.10);
+  --elev-border-2: rgba(var(--ink-rgb),.13);
+  --elev-border-3: rgba(var(--ink-rgb),.17);
+
+  /* Oberer Innen-Glanz + unterer Innen-Schatten = plastische Kante */
+  --elev-hi: inset 0 1px 0 rgba(var(--ink-rgb),.07);
+  --elev-hi-strong: inset 0 1px 0 rgba(var(--ink-rgb),.10);
+  --elev-lo: inset 0 -1px 0 rgba(0,0,0,.18);
+
+  --elev-shadow-1: 0 1px 3px rgba(0,0,0,.18), var(--elev-hi);
+  --elev-shadow-2: 0 6px 18px rgba(0,0,0,.28), var(--elev-hi);
+  --elev-shadow-3: 0 18px 48px rgba(0,0,0,.40), 0 4px 12px rgba(0,0,0,.24), var(--elev-hi-strong);
+
+  /* Opake Surface-Farben (für Backdrops, die echte Deckung brauchen) */
+  --surface-canvas: var(--navy-900);
+  --surface-raised: rgba(var(--navy-800-rgb),.72);
+  --surface-overlay: rgba(var(--navy-800-rgb),.86);
+
+  /* ============================================================
+     MOTION-SYSTEM (Task 8) — eine einheitliche Bewegungssprache.
+     ============================================================ */
+  --dur-1: .12s;          /* Mikro: Hover, Tap */
+  --dur-2: .2s;           /* Standard: Farb-/Transformwechsel */
+  --dur-3: .32s;          /* Übergänge, Enthüllungen */
+  --dur-4: .5s;           /* große Choreographien */
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+  --ease-in-out: cubic-bezier(.4,0,.2,1);
+  --ease-spring: cubic-bezier(.34,1.32,.64,1);   /* leichtes Überschwingen */
+  --ease-spring-soft: cubic-bezier(.34,1.12,.64,1);
 }
 
 [data-theme="light"] {
@@ -107,6 +182,17 @@
   --navy-500: #C9BC9C;
   --navy-400: #B3A37C;
   --steel: #6B8AAE;
+  --gray-50: #F8FAFC;
+  --gray-100: #F1F5F9;
+  --gray-150: #E9EFF6;
+  --gray-200: #E2E8F0;
+  --gray-300: #CBD5E1;
+  --gray-400: #94A3B8;
+  --gray-500: #64748B;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1E293B;
+  --gray-900: #0F172A;
   --border: 1px solid rgba(15,23,42,.08);
   --glass-bg: rgba(15,23,42,.035);
   --glass-bg-hover: rgba(15,23,42,.07);
@@ -125,6 +211,8 @@
 
   --ink-rgb: 15,23,42;
   --ink-strong: #0F172A;
+  --app-ink-rgb: 15,23,42;
+  --app-ink-strong: #0F172A;
   --navy-800-rgb: 236,231,220;
   --navy-900-rgb: 244,241,234;
   --navy-700-rgb: 226,220,204;
@@ -132,9 +220,26 @@
 
   /* The light canvas is a warm cream, so dark ink needs a higher alpha than in
      dark mode to clear WCAG AA for secondary/faint label tiers. */
-  --text-2: rgba(var(--ink-rgb),.80);
-  --text-3: rgba(var(--ink-rgb),.64);
-  --text-faint: rgba(var(--ink-rgb),.60);
+  --text-2: rgba(var(--ink-rgb),.88);
+  --text-3: rgba(var(--ink-rgb),.74);
+  --text-faint: rgba(var(--ink-rgb),.68);
+
+  /* Light-Mode-Anpassung der Elevation-Tokens: auf hellem Cream-Canvas
+     erzeugt dunkle Tinte die Tiefe, der obere Glanz wird hingegen weiß. */
+  --elev-0-bg: rgba(var(--ink-rgb),.015);
+  --elev-1-bg: rgba(255,255,255,.55);
+  --elev-2-bg: rgba(255,255,255,.72);
+  --elev-3-bg: rgba(255,255,255,.86);
+  --elev-1-bg-hover: rgba(255,255,255,.68);
+  --elev-2-bg-hover: rgba(255,255,255,.82);
+  --elev-hi: inset 0 1px 0 rgba(255,255,255,.7);
+  --elev-hi-strong: inset 0 1px 0 rgba(255,255,255,.85);
+  --elev-lo: inset 0 -1px 0 rgba(15,23,42,.05);
+  --elev-shadow-1: 0 1px 3px rgba(15,23,42,.08), var(--elev-hi);
+  --elev-shadow-2: 0 6px 18px rgba(15,23,42,.12), var(--elev-hi);
+  --elev-shadow-3: 0 18px 48px rgba(15,23,42,.18), 0 4px 12px rgba(15,23,42,.10), var(--elev-hi-strong);
+  --accent-soft: rgba(var(--accent-rgb),.11);
+  --accent-soft-hover: rgba(var(--accent-rgb),.18);
 }
 
 *, *::before, *::after {
@@ -301,4 +406,15 @@ html[data-vt-theme] ::view-transition-new(root) {
     border-color: rgba(var(--ink-rgb),.24);
   }
   :focus-visible { outline-width: 3px; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }

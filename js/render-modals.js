@@ -1,5 +1,6 @@
 import {
   CODE_MAP,
+  WORKPLACES,
   MONTHS,
   MONTHS_SHORT,
   DOW_ABBR,
@@ -18,16 +19,118 @@ import {
 } from './constants.js';
 
 import { state, TOD_Y, TOD_M, TOD_D } from './state.js';
-import { getCell, buildProfileStats, buildYearlyStats } from './model.js';
-import { openEditor } from './app.js';
+import { getCell, buildProfileStats, buildYearlyStats, getEmployeesForYear, getEmployeeFairness, isDutyExempt } from './model.js';
+import { openEditor, switchPeriod } from './app.js';
+import { renderEmployeeDetailDashboard, renderEmployeeDashboard } from './render-employee-dashboard.js';
 import { autoPlanResult } from './autoplan.js';
 import { closeCellQuickPopover, updateModalLayout } from './render-grid.js';
+
+// Registry der aktiven Chart.js-Instanzen des Profil-Modals (Donut, Trend …),
+// damit sie vor dem Neuaufbau sauber zerstört werden und keine Leaks/Doppel-
+// Renderings entstehen.
+const _pmCharts = {};
 
 function _destroyChart(id) {
   if (_pmCharts[id]) {
     _pmCharts[id].destroy();
     delete _pmCharts[id];
   }
+}
+
+// Schaltet im Profil-Modal zwischen Monats- und Jahreskalender um und hält die
+// Tab-Buttons/Überschrift synchron. Wird bei jedem Öffnen sowie bei Klick auf
+// die Umschalter aufgerufen.
+let _profileCalWired = false;
+function applyProfileCalView() {
+  const view = state.profileCalView === "year" ? "year" : "month";
+  const monthEl = document.getElementById("pm-cal");
+  const yearEl = document.getElementById("pm-cal-year");
+  const titleEl = document.getElementById("pm-cal-title");
+  if (monthEl) monthEl.hidden = view !== "month";
+  if (yearEl) yearEl.hidden = view !== "year";
+  if (titleEl) titleEl.textContent = view === "year" ? "Jahreskalender" : "Monatskalender";
+  document.querySelectorAll("#modal-emps [data-cal-view]").forEach((btn) => {
+    const active = btn.dataset.calView === view;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+}
+
+// --- Zusammengeführtes Mitarbeiter-Modal: Screen- und Tab-Steuerung ---------
+// Das frühere Profil-Modal ist jetzt der "Person"-Screen innerhalb des
+// Mitarbeiter-Modals. Die folgenden Helfer schalten zwischen Team-/Person-Screen
+// und zwischen den Profil-Tabs (Übersicht/Dienste/Kalender/Jahr/Verwaltung) um.
+
+function _setScreenButtons(active) {
+  document.querySelectorAll("#modal-emps .emp-screen-btn").forEach((b) => {
+    const on = b.dataset.screen === active;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+}
+
+function populatePersonSelect(empName) {
+  const sel = document.getElementById("emp-person-select");
+  if (!sel) return;
+  const emps = getEmployeesForYear(state.year).slice();
+  if (empName && !emps.includes(empName)) emps.unshift(empName);
+  sel.innerHTML = emps
+    .map((e) => `<option value="${e}"${e === empName ? " selected" : ""}>${e}</option>`)
+    .join("");
+}
+
+function ensurePersonScreen(empName) {
+  const overlay = document.getElementById("modal-emps");
+  if (overlay && overlay.hasAttribute("hidden")) showOverlay("modal-emps");
+  state.empScreen = "person";
+  const team = document.getElementById("emp-screen-team");
+  const person = document.getElementById("emp-screen-person");
+  if (team) team.hidden = true;
+  if (person) person.hidden = false;
+  const personBtn = document.getElementById("emp-screen-person-btn");
+  if (personBtn) personBtn.disabled = false;
+  _setScreenButtons("person");
+  populatePersonSelect(empName);
+}
+
+export function showTeamScreen() {
+  state.empScreen = "team";
+  const team = document.getElementById("emp-screen-team");
+  const person = document.getElementById("emp-screen-person");
+  if (team) team.hidden = false;
+  if (person) person.hidden = true;
+  _setScreenButtons("team");
+  renderEmployeeDashboard();
+}
+
+export function showPersonScreen() {
+  if (state.profileEmp) {
+    openProfileModal(state.profileEmp);
+  }
+}
+
+export function applyPersonTab(tab) {
+  const valid = ["overview", "duties", "calendar", "year", "admin"];
+  if (!valid.includes(tab)) tab = "overview";
+  state.profileTab = tab;
+  document.querySelectorAll("#modal-emps .pm-tab").forEach((b) => {
+    const on = b.dataset.ptab === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll("#modal-emps .pm-tabpanel").forEach((p) => {
+    p.hidden = p.dataset.ptabPanel !== tab;
+  });
+  if (tab === "admin" && state.profileEmp) {
+    state.employeeDashboard.detailView = "admin";
+    renderEmployeeDetailDashboard(state.profileEmp, state.year);
+  }
+  // Charts in zuvor versteckten Panels haben beim Aufbau evtl. keine Maße –
+  // nach dem Einblenden neu vermessen.
+  requestAnimationFrame(() => {
+    if (tab === "overview") _pmCharts["donut"]?.resize();
+    if (tab === "year") _pmCharts["trend"]?.resize();
+  });
 }
 
 export function openProfileModal(empName) {
@@ -49,6 +152,11 @@ export function openProfileModal(empName) {
   _destroyChart("trend");
 
   state.profileEmp = empName;
+  state.employeeDashboard.selectedEmp = empName;
+
+  // Modal öffnen + auf den Person-Screen umschalten, bevor gerendert wird, damit
+  // sichtbare Panels (z. B. Donut) korrekte Maße haben.
+  ensurePersonScreen(empName);
 
   // === HEADER ===
   const avatarEl = document.getElementById("pm-avatar");
@@ -133,7 +241,7 @@ export function openProfileModal(empName) {
         statusText = `Heute: ${todayDuty === "D" ? "Bereitschaftsdienst" : "Hintergrunddienst"}`;
       } else {
         statusText = "Heute: Kein Eintrag";
-        statusColor = "#94A3B8"; statusBg = "#F8FAFC";
+        statusColor = "#64748B"; statusBg = "#F8FAFC";
       }
 
       todayStatusEl.style.display = "";
@@ -172,7 +280,7 @@ export function openProfileModal(empName) {
       { label: "Werktage", val: s.totalWorkdays, sub: `${s.totalActive} aktiv · ${covPct}%`, color: "#1D4ED8", pct: covPct, trendHtml: trend(s.totalActive, sPrev.totalActive), ytd: ys.totals.totalActive },
       { label: "Nicht geplant", val: s.uncovered, sub: s.uncovered > 0 ? "Arbeitstage offen" : "Vollständig geplant", color: s.uncovered > 0 ? "#F97316" : "#15803D", pct: 0, trendHtml: "", ytd: null },
       { label: "D-Dienste", val: s.dutyD.length, sub: s.dutyD.length ? s.dutyD.map(d => `${d}.`).join(" ") : "Keine", color: "#EF4444", pct: 0, trendHtml: trend(s.dutyD.length, sPrev.dutyD.length), ytd: ys.totals.dutyD },
-      { label: "HG-Dienste", val: s.dutyHG.length, sub: s.dutyHG.length ? s.dutyHG.map(d => `${d}.`).join(" ") : "Keine", color: "#0EA5E9", pct: 0, trendHtml: trend(s.dutyHG.length, sPrev.dutyHG.length), ytd: ys.totals.dutyHG },
+      { label: "HG-Dienste", val: s.dutyHG.length, sub: s.dutyHG.length ? s.dutyHG.map(d => `${d}.`).join(" ") : "Keine", color: "#0369A1", pct: 0, trendHtml: trend(s.dutyHG.length, sPrev.dutyHG.length), ytd: ys.totals.dutyHG },
       { label: "Urlaub", val: vac, sub: "U · ZU · SU · §15c", color: "#7C3AED", pct: 0, trendHtml: trend(vac, vacPrev), ytd: ys.totals.vacationDays },
       { label: "Krank", val: sick, sub: sick > 0 ? "K · KK" : "Kein Krankentag", color: sick > 0 ? "#DC2626" : "#15803D", pct: 0, trendHtml: trend(sick, sickPrev), ytd: ys.totals.sickDays },
       { label: "FZA", val: fza, sub: "Freizeitausgleich", color: "#3730A3", pct: 0, trendHtml: "", ytd: ys.totals.fzaDays },
@@ -339,6 +447,182 @@ export function openProfileModal(empName) {
     } else {
       if (dutyHdEl) dutyHdEl.style.display = "none";
       dutyDetailEl.innerHTML = `<div class="pm-empty-hint">Keine Dienste in diesem Monat eingetragen.</div>`;
+    }
+  }
+
+  // === DIENST-FAIRNESS (gesamtes Jahr, teamrelativ) ===
+  // Branchenübliche Verteilungs-/Gerechtigkeitsmetrik: zeigt die Belastung der
+  // Person durch Dienste (gesamt, Wochenende/Feiertag, reine Feiertage) im
+  // Vergleich zum FTE-gewichteten fairen Anteil, Soll/Ist (BD) und der
+  // Rangfolge im Team.
+  const fairnessEl = document.getElementById("pm-fairness");
+  if (fairnessEl) {
+    if (isDutyExempt(empName)) {
+      fairnessEl.innerHTML = `<div class="pm-empty-hint">${meta.fullName !== empName ? meta.fullName : empName} ist von Bereitschafts- und Hintergrunddiensten befreit — keine Fairness-Auswertung.</div>`;
+    } else {
+      const { row, team } = getEmployeeFairness(empName, y);
+      if (!row || team.count === 0) {
+        fairnessEl.innerHTML = `<div class="pm-empty-hint">Noch keine Dienstdaten für eine Fairness-Auswertung in ${y}.</div>`;
+      } else {
+        // Deutsche Zahlenformatierung (Dezimalkomma), konsistent mit der
+        // Fairness-Rangliste im Team-Screen / der Abteilungsübersicht.
+        const dec1 = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const sign = (n) => {
+          const v = Math.round(n * 10) / 10;
+          return (v > 0 ? "+" : v < 0 ? "−" : "±") + (Math.round(Math.abs(v) * 10) / 10).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+        };
+        const statusMeta = {
+          over: { lbl: "Überdurchschnittlich belastet", cls: "over", color: "#DC2626" },
+          under: { lbl: "Unterdurchschnittlich belastet", cls: "under", color: "#2563EB" },
+          balanced: { lbl: "Fair verteilt", cls: "balanced", color: "#15803D" },
+        };
+        const st = statusMeta[row.status] || statusMeta.balanced;
+
+        // Team-Positionsbalken (min … Person … max) für Gesamtbelastung.
+        const range = Math.max(1, team.maxTotal - team.minTotal);
+        const posPct = Math.round(((row.total - team.minTotal) / range) * 100);
+        const meanPct = Math.round(((team.meanTotal - team.minTotal) / range) * 100);
+
+        // Abweichungs-Balken um die 0-Achse (links blau = unter fair, rechts rot = über fair).
+        const devBar = (dev, fair) => {
+          const scale = Math.max(1, fair * 0.6);
+          const w = Math.min(50, Math.round((Math.abs(dev) / scale) * 50));
+          const isOver = dev > 0.05;
+          const isUnder = dev < -0.05;
+          const fillStyle = isOver
+            ? `left:50%;width:${w}%;background:#EF4444`
+            : isUnder
+              ? `left:${50 - w}%;width:${w}%;background:#3B82F6`
+              : `left:49%;width:2%;background:#94A3B8`;
+          return `<div class="pm-fair-dev"><span class="pm-fair-dev-axis"></span><span class="pm-fair-dev-fill" style="${fillStyle}"></span></div>`;
+        };
+
+        const tiles = [
+          { lbl: "Dienste gesamt", val: row.total, rank: row.rankTotal, color: "#0F172A", sub: `Ø Team ${dec1(team.meanTotal)}` },
+          { lbl: "WE / Feiertag", val: row.weekendDuties, rank: row.rankWeekend, color: "#B45309", sub: `Ø Team ${dec1(team.meanWeekend)}` },
+          { lbl: "Feiertagsdienste", val: row.holidayDuties, rank: row.rankHoliday, color: "#7C3AED", sub: `${team.totalHoliday} im Team` },
+        ];
+
+        fairnessEl.innerHTML = `
+          <div class="pm-fair-grid">
+            <div class="pm-fair-tiles">
+              ${tiles.map((t) => `
+                <div class="pm-fair-tile">
+                  <div class="pm-fair-tile-top">
+                    <span class="pm-fair-tile-val" style="color:${t.color}">${t.val}</span>
+                    <span class="pm-fair-rank" title="Rang im Team (1 = höchste Belastung)">#${t.rank}<small>/${team.count}</small></span>
+                  </div>
+                  <div class="pm-fair-tile-lbl">${t.lbl}</div>
+                  <div class="pm-fair-tile-sub">${t.sub}</div>
+                </div>
+              `).join("")}
+            </div>
+
+            <div class="pm-fair-status pm-fair-status-${st.cls}">
+              <span class="pm-fair-status-dot" style="background:${st.color}"></span>
+              <span class="pm-fair-status-lbl" style="color:${st.color}">${st.lbl}</span>
+              <span class="pm-fair-status-val">Fair-Anteil ${dec1(row.fairTotal)} · Ist ${row.total} (${sign(row.totalDev)})</span>
+            </div>
+
+            <div class="pm-fair-rows">
+              <div class="pm-fair-row">
+                <span class="pm-fair-row-lbl">Soll/Ist Bereitschaftsdienst</span>
+                <div class="pm-fair-bar-bg">
+                  <div class="pm-fair-bar-fill" style="width:${Math.min(100, row.bdTargetPct)}%;background:${row.bdTargetPct > 115 ? "#DC2626" : row.bdTargetPct >= 85 ? "#22C55E" : "#F59E0B"}"></div>
+                  <span class="pm-fair-bar-target" style="left:100%"></span>
+                </div>
+                <span class="pm-fair-row-val">${row.bd} / ${row.bdTarget} <small>(${sign(row.bdDelta)})</small></span>
+              </div>
+              <div class="pm-fair-row">
+                <span class="pm-fair-row-lbl">Abweichung Gesamtdienste</span>
+                ${devBar(row.totalDev, row.fairTotal)}
+                <span class="pm-fair-row-val">${sign(row.totalDev)}</span>
+              </div>
+              <div class="pm-fair-row">
+                <span class="pm-fair-row-lbl">Abweichung WE/Feiertag</span>
+                ${devBar(row.weekendDev, row.fairWeekend)}
+                <span class="pm-fair-row-val">${sign(row.weekendDev)}</span>
+              </div>
+            </div>
+
+            <div class="pm-fair-pos">
+              <div class="pm-fair-pos-head">
+                <span>Position im Team (Gesamtdienste)</span>
+                <span class="pm-fair-pos-equity" title="Equity-Index: 100 = perfekt gleichmäßig verteilt">Equity ${team.equityTotal}/100</span>
+              </div>
+              <div class="pm-fair-pos-track">
+                <span class="pm-fair-pos-mean" style="left:${meanPct}%" title="Team-Durchschnitt ${dec1(team.meanTotal)}"></span>
+                <span class="pm-fair-pos-dot" style="left:${posPct}%" title="${empName}: ${row.total}"></span>
+              </div>
+              <div class="pm-fair-pos-scale">
+                <span>min ${team.minTotal}</span>
+                <span>Ø ${dec1(team.meanTotal)}</span>
+                <span>max ${team.maxTotal}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+  }
+
+  // === FEIERTAGSDIENSTE (gesamtes Jahr) ===
+  // Listet alle gesetzlichen Feiertage des Jahres auf, an denen die Person
+  // einen Dienst (D/HG) oder Arbeitsplatz-Einsatz hatte – inkl. Kurzbilanz.
+  const holDutyEl = document.getElementById("pm-holiday-duty");
+  if (holDutyEl) {
+    const yearHols = getSaxonyHolidaysCached(y);
+    const holEntries = [];
+    Object.keys(yearHols).forEach((key) => {
+      const parts = key.split("-");
+      const km = parseInt(parts[1], 10) - 1;
+      const kd = parseInt(parts[2], 10);
+      if (!Number.isFinite(km) || !Number.isFinite(kd)) return;
+      if (!ys.months[km] || !ys.months[km].hasData) return;
+      const cell = getCell(y, km, empName, kd);
+      // Nur echte Einsätze zählen als Feiertagsdienst: ein Dienst (D/HG) oder ein
+      // tatsächlicher Arbeitsplatz. Reine Abwesenheiten/Status (U, K, FZA, F …)
+      // werden bewusst ausgeklammert.
+      const baseCode = cell.assignment ? cell.assignment.split("/")[0].trim() : "";
+      const isWorkplace = baseCode && WORKPLACES.some((w) => w.code === baseCode);
+      if (!cell.duty && !isWorkplace) return;
+      holEntries.push({
+        mon: km,
+        d: kd,
+        wd: weekday(y, km, kd),
+        name: yearHols[key],
+        assignment: cell.assignment || "",
+        duty: cell.duty || "",
+      });
+    });
+    holEntries.sort((a, b) => a.mon - b.mon || a.d - b.d);
+
+    if (holEntries.length) {
+      const dCount = holEntries.filter((e) => e.duty === "D").length;
+      const hgCount = holEntries.filter((e) => e.duty === "HG").length;
+      holDutyEl.innerHTML = `
+        <div class="pm-holiday-summary">
+          <span class="pm-holiday-stat"><strong>${holEntries.length}</strong> Feiertag(e) im Einsatz</span>
+          ${dCount ? `<span class="pm-holiday-stat d"><strong>${dCount}</strong>× Bereitschaftsdienst</span>` : ""}
+          ${hgCount ? `<span class="pm-holiday-stat hg"><strong>${hgCount}</strong>× Hintergrunddienst</span>` : ""}
+        </div>
+        <div class="pm-holiday-list">
+          ${holEntries.map((e) => {
+            const cm = e.assignment ? CODE_MAP[e.assignment.split("/")[0].trim()] : null;
+            const dutyBadge = e.duty ? `<span class="pm-holiday-duty-badge badge-${e.duty}" title="${e.duty === "D" ? "Bereitschaftsdienst" : "Hintergrunddienst"}">${e.duty}</span>` : "";
+            const assignBadge = e.assignment ? `<span class="pm-holiday-assign" style="background:${cm?.bg || "#F1F5F9"};color:${cm?.fg || "#475569"}">${e.assignment}</span>` : "";
+            return `
+              <div class="pm-holiday-row">
+                <span class="pm-holiday-date">${DOW_ABBR[e.wd]} ${e.d}. ${MONTHS_SHORT[e.mon]}</span>
+                <span class="pm-holiday-name" title="${e.name}">${e.name}</span>
+                <span class="pm-holiday-tags">${dutyBadge}${assignBadge}</span>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    } else {
+      holDutyEl.innerHTML = `<div class="pm-empty-hint">Keine Dienste oder Einsätze an gesetzlichen Feiertagen in ${y}.</div>`;
     }
   }
 
@@ -549,6 +833,83 @@ export function openProfileModal(empName) {
     });
   }
 
+  // === YEAR CALENDAR (alle 12 Monate kompakt) ===
+  const calYearEl = document.getElementById("pm-cal-year");
+  if (calYearEl) {
+    let yHtml = `<div class="pyc-grid-wrap">`;
+    for (let mon = 0; mon < 12; mon++) {
+      const dim = daysInMonth(y, mon);
+      const firstWd = weekday(y, mon, 1);
+      const hasData = ys.months[mon] && ys.months[mon].hasData;
+
+      yHtml += `<div class="pyc-month${mon === m ? " is-current" : ""}${!hasData ? " no-data" : ""}">`;
+      yHtml += `<div class="pyc-month-hd">${MONTHS[mon]}</div>`;
+      yHtml += `<div class="pyc-days">`;
+      DOW_ABBR.forEach((dn, i) => {
+        yHtml += `<div class="pyc-dow${(i === 0 || i === 6) ? " is-we" : ""}">${dn[0]}</div>`;
+      });
+      for (let i = 0; i < firstWd; i++) yHtml += `<div class="pyc-ph"></div>`;
+
+      for (let d = 1; d <= dim; d++) {
+        const wd = weekday(y, mon, d);
+        const hol = isHoliday(y, mon, d, hols);
+        const holName = hols[dateKey(y, mon, d)];
+        const cell = getCell(y, mon, empName, d);
+        const assign = typeof cell.assignment === "string" ? cell.assignment : "";
+        const duty = typeof cell.duty === "string" ? cell.duty : "";
+        const { bg: cbg, fg: cfg } = cellColor(assign);
+
+        let cls = "pyc-day";
+        if (hol) cls += " is-hol";
+        else if (wd === 0 || wd === 6) cls += " is-we";
+        else if (!assign && !duty) cls += " is-empty";
+        if (isTodayCol(y, mon, d, TOD_Y, TOD_M, TOD_D)) cls += " is-today";
+
+        const interactive = (!hol && wd !== 0 && wd !== 6) ? ` role="button" tabindex="0"` : "";
+        const bgStyle = assign ? `background:${cbg};color:${cfg}` : "";
+        const titleAttr = ` title="${DOW_LONG[wd]}, ${d}. ${MONTHS[mon]}${hol ? " – " + holName : ""}${assign ? " · " + assign : ""}${duty ? " · " + duty : ""}"`;
+
+        yHtml += `
+          <div class="${cls}" style="${bgStyle}"${interactive} data-day="${d}" data-mon="${mon}"${titleAttr}>
+            <span class="pyc-num">${d}</span>
+            ${duty ? `<span class="pyc-duty badge-${duty}">${duty}</span>` : ""}
+          </div>
+        `;
+      }
+      yHtml += `</div></div>`;
+    }
+    yHtml += `</div>`;
+    calYearEl.innerHTML = yHtml;
+
+    calYearEl.querySelectorAll('.pyc-day[role="button"]').forEach((el) => {
+      const d = parseInt(el.dataset.day, 10);
+      const mon = parseInt(el.dataset.mon, 10);
+      const open = () => {
+        hideOverlay("modal-profile");
+        setTimeout(() => {
+          if (mon !== state.month || y !== state.year) switchPeriod(y, mon);
+          openEditor(empName, d);
+        }, 180);
+      };
+      el.addEventListener("click", open);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+      });
+    });
+  }
+
+  // === CALENDAR VIEW TOGGLE (Monat / Jahr) ===
+  applyProfileCalView();
+  if (!_profileCalWired) {
+    document.querySelectorAll("#modal-emps [data-cal-view]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.profileCalView = btn.dataset.calView;
+        applyProfileCalView();
+      });
+    });
+    _profileCalWired = true;
+  }
+
   // === YEARLY SUMMARY ===
   const yrEl = document.getElementById("pm-yearly");
   if (yrEl) {
@@ -648,7 +1009,52 @@ export function openProfileModal(empName) {
     yrEl.innerHTML = yrHtml;
   }
 
-  showOverlay("modal-profile");
+  // Aktiven Profil-Tab anwenden (zeigt das passende Panel + vermisst Charts neu).
+  applyPersonTab(state.profileTab || "overview");
+}
+
+let activeFocusTrap = null;
+
+function setupFocusTrap(el) {
+  if (activeFocusTrap) {
+    window.removeEventListener("keydown", activeFocusTrap);
+  }
+
+  activeFocusTrap = (e) => {
+    if (e.key !== "Tab") return;
+
+    const focusables = Array.from(
+      el.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    ).filter(item => {
+      return !!(item.offsetWidth || item.offsetHeight || item.getClientRects().length);
+    });
+
+    if (!focusables.length) return;
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  };
+
+  window.addEventListener("keydown", activeFocusTrap);
+}
+
+function removeFocusTrap() {
+  if (activeFocusTrap) {
+    window.removeEventListener("keydown", activeFocusTrap);
+    activeFocusTrap = null;
+  }
 }
 
 export function showOverlay(id) {
@@ -668,6 +1074,8 @@ export function showOverlay(id) {
   updateModalLayout(el);
   setTimeout(() => updateModalLayout(el), 60);
   
+  setupFocusTrap(el);
+  
   const first = el.querySelector('[autofocus],[tabindex="0"],button:not([disabled]),input,textarea');
   if (first) {
     setTimeout(() => first.focus(), 60);
@@ -677,6 +1085,13 @@ export function showOverlay(id) {
 export function hideOverlay(id) {
   const el = document.getElementById(id);
   if (!el) return;
+  
+  removeFocusTrap();
+  
+  const otherOverlay = Array.from(document.querySelectorAll(".overlay:not([hidden])")).find(o => o !== el);
+  if (otherOverlay) {
+    setupFocusTrap(otherOverlay);
+  }
   
   const mEl = el.querySelector(".modal");
   if (mEl) {

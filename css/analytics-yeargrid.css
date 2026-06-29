@@ -1,0 +1,47 @@
+/* Auswertungs-Hub · Modul „Jahresgitter" (yg-*) */
+.yg-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; font-size: 11px; color: var(--text-3); margin-bottom: 12px; }
+.yg-leg-item { display: inline-flex; align-items: center; gap: 5px; }
+.yg-swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(128,128,128,.25); }
+.yg-leg-hint { color: var(--text-faint); }
+.yg-scroll { overflow-x: auto; border: 1px solid var(--gray-200); border-radius: var(--radius); }
+.yg-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.yg-table th, .yg-table td { padding: 6px 8px; text-align: center; white-space: nowrap; }
+.yg-th-name, .yg-td-name { text-align: left !important; position: sticky; left: 0; background: var(--gray-50); z-index: 2; min-width: 150px; }
+.yg-th-name, .yg-th-month, .yg-th-total { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; background: var(--gray-100, rgba(148,163,184,.10)); position: sticky; top: 0; z-index: 1; }
+.yg-th-name { z-index: 3; }
+.yg-th-now { color: var(--accent, #0EA5E9); }
+.yg-th-future { opacity: .55; }
+.yg-mean-hdr td { font-size: 11px; color: var(--text-faint); background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+.yg-mean-name .yg-mean-icon { font-weight: 700; color: var(--text-3); }
+.yg-td-mean { font-variant-numeric: tabular-nums; }
+.yg-group-label { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); background: var(--gray-100, rgba(148,163,184,.12)); padding: 5px 8px; }
+.yg-emp-row { border-top: 1px solid var(--gray-200); }
+.yg-emp-name { font-weight: 600; color: var(--text-1); cursor: pointer; }
+.yg-emp-name:hover { text-decoration: underline; }
+.yg-emp-pos { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 6px; }
+.yg-td-cell { cursor: pointer; transition: outline .1s; }
+.yg-td-cell:hover { outline: 2px solid var(--accent, #0EA5E9); outline-offset: -2px; }
+.yg-td-now { box-shadow: inset 0 0 0 2px rgba(14,165,233,.4); }
+.yg-cell-inner { display: flex; align-items: baseline; justify-content: center; gap: 3px; }
+.yg-bd { font-weight: 800; font-variant-numeric: tabular-nums; }
+.yg-bd-lbl, .yg-hg-lbl, .yg-total-lbl { font-size: 8px; opacity: .65; margin-left: 1px; }
+.yg-hg { font-size: 10px; color: var(--text-faint); }
+.yg-dash { color: var(--text-faint); opacity: .5; }
+.yg-td-nodata { background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(128,128,128,.05) 4px, rgba(128,128,128,.05) 8px); }
+.yg-future { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: rgba(128,128,128,.25); }
+.yg-td-total, .yg-th-total { background: var(--gray-100, rgba(148,163,184,.10)); font-weight: 800; }
+.yg-total-bd { color: var(--text-1); } .yg-total-hg { font-size: 10px; color: var(--text-faint); margin-left: 4px; }
+
+/* --- Portrait-Mobile: Gitter scrollbar im Wrap, kompaktere Zellen, schmalere Sticky-Spalte --- */
+@media (max-width: 560px) {
+  .yg-scroll { max-width: 100%; -webkit-overflow-scrolling: touch; contain: paint; }
+  .yg-table { font-size: 11px; }
+  .yg-table th, .yg-table td { padding: 5px 6px; }
+  .yg-th-name, .yg-td-name { min-width: 120px; }
+  .yg-legend { gap: 8px 12px; }
+}
+@media (max-width: 380px) {
+  .yg-table { font-size: 10.5px; }
+  .yg-table th, .yg-table td { padding: 4px 5px; }
+  .yg-th-name, .yg-td-name { min-width: 104px; }
+}

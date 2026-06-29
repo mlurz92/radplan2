@@ -3,14 +3,14 @@
 Der RadPlan Neural Scheduler ist ein hochkomplexes Optimierungssystem, das darauf ausgelegt ist, eine mathematisch perfekte Verteilung von Bereitschaftsdiensten (BD) und Hintergrunddiensten (HG) zu generieren. Er operiert in einem hoch-iterativen Umfeld und nutzt eine Kombination aus deterministischen Regeln, probabilistischem Scoring und einer globalen Metaheuristik (Swap-Optimierung). Der gesamte Prozess wird transparent durch den **Neural Fitness Index (NFI)** gemessen und bewertet.
 
 ## 1. Systemarchitektur & Prozesssteuerung
-Das System arbeitet nicht linear, sondern in einer massiv erweiterten 15-fachen Schleife (Cycles). In jedem Zyklus werden tausende von potenziellen Dienst-Konfigurationen simuliert und gegeneinander abgewogen. Das Ziel ist die Minimierung der "Global Objective Function" – einer Kostenfunktion, die Regelverstöße und Unfairness mit massiven Strafpunkten (Penalties) belegt.
+Das System arbeitet nicht linear, sondern in einer massiv erweiterten 25-fachen Schleife (Cycles). In jedem Zyklus werden tausende von potenziellen Dienst-Konfigurationen simuliert und gegeneinander abgewogen. Das Ziel ist die Minimierung der "Global Objective Function" – einer Kostenfunktion, die Regelverstöße und Unfairness mit massiven Strafpunkten (Penalties) belegt.
 
 ### Die Optimierungs-Pipeline:
 1. **Initialisierungs-Phase:** Aggregation historischer Statistiken (seit dem 01.01. des laufenden Jahres) und Sicherung manuell gesetzter Dienste. Automatische Korrektur fehlender Ruhetage (F) nach fixen Bereitschaftsdiensten.
 2. **Konstruktive Phase (Greedy):** Erstverteilung der BDs an Wochenenden und Feiertagen, gefolgt von Werktagen. Hierbei werden harte Ausschlusskriterien (Urlaub, gesetzliche Abstände, spezifische Sperren) strikt beachtet.
 3. **Deterministische Kopplung (HG-Bundling):** Automatische Bindung von HG-Diensten an spezifische BD-Szenarien (z. B. AA-Freitags-Kopplung, FA-Wochenend-Kette, Feiertags-Vortags-Kopplung).
 4. **HG-Rhythmisierung:** Erstverteilung der verbleibenden HG-Lücken unter strengster Berücksichtigung der neuen Anti-Clustering-Logik.
-5. **Multi-Zyklus-Optimierung (15 Zyklen):**
+5. **Multi-Zyklus-Optimierung (25 Zyklen):**
    - **BD-Swap-Pass (80 Durchläufe):** Verfeinerung der BD-Gerechtigkeit und Auflösung lokaler Unausgewogenheiten.
    - **HG-Swap-Pass (120 Durchläufe):** Aktives Aufbrechen von HG-Clustern und Glättung des monatlichen Arbeitsrhythmus.
    - **Globaler Deep-Optimize-Pass (150 Durchläufe):** Systemweite Cross-Role-Swaps zur Behebung hochkomplexer Interdependenz-Konflikte (z. B. CT-Leitung).
@@ -71,6 +71,12 @@ Die Lastverteilung der HG-Dienste erfolgt streng mathematisch auf Basis der aktu
 `Ideal_HG_Anzahl = Monats_Durchschnitt_HG + (Durchschnitt_BD_der_FAs - Individuelle_BD_Anzahl) * 1.0`
 Dieses Modell garantiert absolute Ausgewogenheit: Ein Facharzt, der einen BD weniger als der Durchschnitt leistet, muss exakt einen HG mehr als der Durchschnitt übernehmen. Historische Daten des Vorjahres dienen nur als minimaler "Tie-Breaker", falls zwei Kandidaten für denselben Tag einen identischen in-month Score aufweisen.
 
+### 4.1 Überhang-Präferenz (fünfter Dienst)
+Sind alle BD bereits gleichmäßig und fair an den Monatszielen verteilt und muss dennoch ein Dienst über dem Ziel hinaus vergeben werden, absorbiert **Dr. Lurz** diesen ersten Überhang-Dienst bevorzugt. Die Regel ist datengetrieben über `SPECIAL_RULES.surplusBdPreference` konfiguriert und wirkt sowohl im Greedy-Scoring (`scoreBDCandidate`) als auch in der Kostenfunktion (`computeBDObjective`). Der Bonus (ca. 8.000 Pkt.) greift ausschließlich beim Schritt Ziel → Ziel+1 und wird unterdrückt, sobald ein anderer Kandidat einen BD-Wunsch für denselben Tag besitzt. Er ist klein gegenüber der quadratischen Zielabweichungs-Strafe und erzwingt daher niemals einen unnötigen Überhang oder verdrängt unter-Ziel-Kandidaten.
+
+### 4.2 Wochenend-Fairness (doppelte Absicherung)
+Die Wochenend-Last wird nicht nur gegen das feste Ziel von 1.0 Äquivalenten gemessen, sondern zusätzlich gegen die Streuung um den tatsächlichen Gruppendurchschnitt (`(weCount − weAvg)² × ~9.000` im BD-Objective bzw. `× ~4.500` im HG-Objective). So trägt auch in einem engen Monat, in dem 1.0 nicht für jede Person exakt erreichbar ist, niemand deutlich mehr Wochenend-Last als der Rest.
+
 ## 5. Neural Fitness Index (NFI)
 Die Qualität des errechneten Plans wird transparent und hochpräzise über den **Neural Fitness Index (NFI)** auf einer Skala von 0.0 bis 100.0 gemessen. Er setzt sich wie folgt zusammen:
 - **36% BD-Abdeckung:** Malus bei Lücken im Bereitschaftsdienst-Netz.
@@ -81,4 +87,4 @@ Die Qualität des errechneten Plans wird transparent und hochpräzise über den 
 - **6% Wunscherfüllung:** Erfüllte Wünsche (BD_WISH, HG_WISH) im Verhältnis zu allen geäußerten positiven Wünschen.
 - **Deep-Move-Korrelation:** Winziger Feinabzug für erzwungene Extrem-Swaps zur Vermeidung von Score-Inflation.
 
-Der Algorithmus läuft künstlich für exakt ~22 Sekunden in der "Orbital Core Animation", um sicherzustellen, dass die Rechentiefe ausgeschöpft wurde und dem Anwender das Volumen der simulierten Kombinationen veranschaulicht wird.
+Der Algorithmus läuft künstlich für exakt ~22 Sekunden in der **"Neural Constellation"**-Visualisierung. Diese vollflächige Canvas-Inszenierung stellt jeden Kalendertag als Knoten in einem neuronalen Netz dar, das um einen zentralen Reaktor-Kern kreist: Jede Vergabe und jeder Optimierungs-Swap entlädt sich als farbcodiertes Energiepaket (D rot, HG blau), das entlang der Synapsen zum Kern wandert, während die Hintergrund-Aurora die aktive Phase (Init/Greedy/HG/Deep/Erfolg) einfärbt. Ein radarartiges HUD-Oszilloskop spiegelt die Aktivität in Echtzeit. So wird sichergestellt, dass die Rechentiefe ausgeschöpft wurde und dem Anwender das Volumen der simulierten Kombinationen eindrucksvoll veranschaulicht wird.

@@ -14,7 +14,7 @@ export async function onRequest(context) {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (!env.RADPLAN2_KV) {
+  if (!env.RADPLAN_KV) {
     return new Response(JSON.stringify({ error: "KV namespace binding missing" }), {
       status: 500,
       headers: {
@@ -26,7 +26,7 @@ export async function onRequest(context) {
 
   if (request.method === "GET") {
     try {
-      const data = await env.RADPLAN2_KV.get("RADPLAN_DATA");
+      const data = await env.RADPLAN_KV.get("RADPLAN_DATA");
       
       if (data) {
         return new Response(data, {
@@ -62,7 +62,7 @@ export async function onRequest(context) {
       const parsedData = JSON.parse(bodyText);
       const clientTimestamp = parseInt(parsedData.lastModified, 10) || 0;
       
-      const existingRaw = await env.RADPLAN2_KV.get("RADPLAN_DATA");
+      const existingRaw = await env.RADPLAN_KV.get("RADPLAN_DATA");
       if (existingRaw) {
         const existingData = JSON.parse(existingRaw);
         const serverTimestamp = parseInt(existingData.lastModified, 10) || 0;
@@ -81,7 +81,7 @@ export async function onRequest(context) {
       parsedData.lastModified = Date.now();
       
       const dataToSave = JSON.stringify(parsedData);
-      await env.RADPLAN2_KV.put("RADPLAN_DATA", dataToSave);
+      await env.RADPLAN_KV.put("RADPLAN_DATA", dataToSave);
       
       return new Response(JSON.stringify({ success: true, lastModified: parsedData.lastModified }), {
         status: 200,

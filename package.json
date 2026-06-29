@@ -1,35 +1,9 @@
 {
   "name": "radplan",
-  "version": "2.0.0",
-  "description": "Digitale Dienstplanung für die Klinik für Radiologie & Nuklearmedizin",
+  "version": "1.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/**/*.test.js",
-    "start": "npx serve .",
-    "dev": "npx serve . --watch"
-  },
-  "keywords": [
-    "dienstplan",
-    "radiologie",
-    "nuklearmedizin",
-    "personalplanung",
-    "spa",
-    "pwa"
-  ],
-  "author": "Klinik für Radiologie & Nuklearmedizin",
-  "license": "UNLICENSED",
-  "private": true,
-  "dependencies": {
-    "chart.js": "^4.4.4",
-    "gsap": "^3.12.2",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
-    "html2canvas": "^1.4.1"
-  },
-  "devDependencies": {
-    "serve": "^14.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "test": "node --test test/**/*.test.js"
   }
 }

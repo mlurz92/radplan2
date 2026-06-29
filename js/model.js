@@ -11,8 +11,13 @@ import {
   reconcileEmployeesForMonth,
   isEmployeeActiveInMonth,
   isWorkday,
+  isHoliday,
+  weekday,
   getSaxonyHolidaysCached,
-  getEmpMeta
+  getEmpMeta,
+  getReducedBdTarget,
+  SPECIAL_RULES,
+  isFacharzt
 } from './constants.js';
 
 import {
@@ -507,6 +512,189 @@ export function getEmployeeYearCardMetrics(emp, year) {
     : 0;
     
   return { emp, ys, meta, activeMonths, coverage };
+}
+
+// ===========================================================================
+//  Dienst-Fairness-Analyse (branchenübliche Verteilungs-/Gerechtigkeitsmetrik)
+// ---------------------------------------------------------------------------
+//  Der Kernzweck der Anwendung ist die *faire* Verteilung der belastenden
+//  Dienste (Bereitschafts- = BD/D und Hintergrund- = HG), insbesondere an
+//  Wochenenden und Feiertagen. Die folgenden Funktionen liefern dafür eine
+//  konsolidierte, FTE-gewichtete Auswertung inkl. Soll/Ist, Abweichung vom
+//  fairen Anteil, Rangfolge und einem Equity-Index (auf Basis des Gini-
+//  Koeffizienten), wie er in Workforce-/Dienstplan-Reportings üblich ist.
+// ===========================================================================
+
+const DEFAULT_BD_TARGET = 4;
+
+export function isDutyExempt(empName) {
+  return (SPECIAL_RULES.dutyExempt || []).includes(empName);
+}
+
+// Gini-Koeffizient (0 = perfekte Gleichverteilung, 1 = maximale Ungleichheit).
+function giniCoefficient(values) {
+  const n = values.length;
+  if (n === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  if (sum === 0) return 0;
+  let cumulative = 0;
+  for (let i = 0; i < n; i++) cumulative += (i + 1) * sorted[i];
+  return (2 * cumulative) / (n * sum) - (n + 1) / n;
+}
+
+// Variationskoeffizient (Streuung relativ zum Mittelwert), als Prozent.
+function coefficientOfVariation(values) {
+  const n = values.length;
+  if (n === 0) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / n;
+  if (mean === 0) return 0;
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / n;
+  return (Math.sqrt(variance) / mean) * 100;
+}
+
+// Equity-Index 0–100 (100 = perfekt fair). Basis: 1 − Gini.
+function equityIndex(values) {
+  if (values.length <= 1) return 100;
+  return Math.round((1 - giniCoefficient(values)) * 100);
+}
+
+// Klassifiziert die Abweichung einer Person vom fairen Anteil.
+function fairnessStatus(dev, fairShare) {
+  const tol = Math.max(1, fairShare * 0.18);
+  if (dev > tol) return "over";
+  if (dev < -tol) return "under";
+  return "balanced";
+}
+
+// Sammelt für eine Person die Dienst-Rohdaten eines Jahres (bis uptoMonth),
+// getrennt nach Gesamt / Wochenende / Feiertag.
+function collectDutyRaw(emp, year, uptoMonth) {
+  let bd = 0, hg = 0, weBd = 0, weHg = 0, holBd = 0, holHg = 0, activeMonths = 0;
+  for (let m = 0; m <= uptoMonth; m++) {
+    const k = monthKey(year, m);
+    if (!DATA[k] || !DATA[k].employees || !DATA[k].employees.includes(emp)) continue;
+    activeMonths++;
+    const hols = getSaxonyHolidaysCached(year);
+    const dim = daysInMonth(year, m);
+    for (let d = 1; d <= dim; d++) {
+      const cell = getCell(year, m, emp, d);
+      if (cell.duty !== "D" && cell.duty !== "HG") continue;
+      const wd = weekday(year, m, d);
+      const hol = isHoliday(year, m, d, hols);
+      const heavy = wd === 0 || wd === 6 || hol;
+      if (cell.duty === "D") {
+        bd++;
+        if (heavy) weBd++;
+        if (hol) holBd++;
+      } else {
+        hg++;
+        if (heavy) weHg++;
+        if (hol) holHg++;
+      }
+    }
+  }
+  return { bd, hg, weBd, weHg, holBd, holHg, activeMonths };
+}
+
+// Konsolidierte Fairness-Auswertung über alle dienstfähigen Mitarbeitenden
+// eines Jahres. `uptoMonth` (0–11) begrenzt den Betrachtungszeitraum (Default:
+// gesamtes Jahr). Dienstbefreite Personen (z. B. Prof. Schäfer) werden
+// ausgeschlossen, da sie das Fairness-Bild verzerren würden.
+export function computeDutyFairness(year, { uptoMonth = 11 } = {}) {
+  const employees = getEmployeesForYear(year).filter((e) => !isDutyExempt(e));
+  const raw = employees
+    .map((emp) => ({ emp, meta: getEmpMeta(emp), ...collectDutyRaw(emp, year, uptoMonth) }))
+    .filter((r) => r.activeMonths > 0);
+
+  const rows = raw.map((r) => ({
+    ...r,
+    fte: r.meta.fte || 100,
+    total: r.bd + r.hg,
+    weekendDuties: r.weBd + r.weHg,
+    holidayDuties: r.holBd + r.holHg,
+  }));
+
+  const count = rows.length;
+  const sum = (key) => rows.reduce((a, r) => a + r[key], 0);
+  const totalBd = sum("bd");
+  const totalHg = sum("hg");
+  const totalWeekend = sum("weekendDuties");
+  const totalHoliday = sum("holidayDuties");
+  const totalDuties = totalBd + totalHg;
+
+  // FTE-gewichtete faire Anteile: Personen mit höherem FTE tragen anteilig mehr.
+  const fteSum = rows.reduce((a, r) => a + r.fte, 0) || 1;
+
+  rows.forEach((r) => {
+    const w = r.fte / fteSum;
+    r.fairBd = totalBd * w;
+    r.fairHg = totalHg * w;
+    r.fairWeekend = totalWeekend * w;
+    r.fairTotal = totalDuties * w;
+
+    r.bdDev = r.bd - r.fairBd;
+    r.hgDev = r.hg - r.fairHg;
+    r.weekendDev = r.weekendDuties - r.fairWeekend;
+    r.totalDev = r.total - r.fairTotal;
+
+    // Soll/Ist für BD: monatliches Ziel (reduziert oder Default 4), FTE- und
+    // aktivitäts-skaliert über die tatsächlich aktiven Monate.
+    const monthlyTarget = getReducedBdTarget(r.emp) ?? DEFAULT_BD_TARGET;
+    r.bdTarget = Math.round(monthlyTarget * r.activeMonths * (r.fte / 100) * 10) / 10;
+    r.bdDelta = Math.round((r.bd - r.bdTarget) * 10) / 10;
+    r.bdTargetPct = r.bdTarget > 0 ? Math.round((r.bd / r.bdTarget) * 100) : 0;
+
+    r.status = fairnessStatus(r.totalDev, r.fairTotal);
+    r.weekendStatus = fairnessStatus(r.weekendDev, r.fairWeekend);
+    r.canFacharzt = isFacharzt(r.emp);
+  });
+
+  // Ränge (1 = höchste Belastung).
+  const rankBy = (key, target) => {
+    [...rows].sort((a, b) => b[key] - a[key]).forEach((r, i) => { r[target] = i + 1; });
+  };
+  rankBy("total", "rankTotal");
+  rankBy("weekendDuties", "rankWeekend");
+  rankBy("holidayDuties", "rankHoliday");
+
+  const team = {
+    count,
+    totalBd,
+    totalHg,
+    totalWeekend,
+    totalHoliday,
+    totalDuties,
+    meanBd: count ? totalBd / count : 0,
+    meanHg: count ? totalHg / count : 0,
+    meanWeekend: count ? totalWeekend / count : 0,
+    meanTotal: count ? totalDuties / count : 0,
+    equityBd: equityIndex(rows.map((r) => r.bd)),
+    equityHg: equityIndex(rows.map((r) => r.hg)),
+    equityWeekend: equityIndex(rows.map((r) => r.weekendDuties)),
+    equityTotal: equityIndex(rows.map((r) => r.total)),
+    cvTotal: Math.round(coefficientOfVariation(rows.map((r) => r.total))),
+    cvWeekend: Math.round(coefficientOfVariation(rows.map((r) => r.weekendDuties))),
+    minTotal: rows.length ? Math.min(...rows.map((r) => r.total)) : 0,
+    maxTotal: rows.length ? Math.max(...rows.map((r) => r.total)) : 0,
+    minWeekend: rows.length ? Math.min(...rows.map((r) => r.weekendDuties)) : 0,
+    maxWeekend: rows.length ? Math.max(...rows.map((r) => r.weekendDuties)) : 0,
+  };
+  team.spreadTotal = team.maxTotal - team.minTotal;
+  team.spreadWeekend = team.maxWeekend - team.minWeekend;
+
+  // Standard: nach Gesamtbelastung absteigend.
+  rows.sort((a, b) => b.total - a.total || b.weekendDuties - a.weekendDuties || a.emp.localeCompare(b.emp, "de"));
+
+  return { year, uptoMonth, rows, team };
+}
+
+// Bequemer Einzelzugriff: liefert die Fairness-Zeile einer Person plus den
+// Team-Kontext (für das Personen-Profil).
+export function getEmployeeFairness(emp, year, opts = {}) {
+  const report = computeDutyFairness(year, opts);
+  const row = report.rows.find((r) => r.emp === emp) || null;
+  return { row, team: report.team, report };
 }
 
 export function matchRoleFilter(emp, role) {

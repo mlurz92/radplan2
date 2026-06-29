@@ -2,7 +2,7 @@ Regeln und Kriterien für den RadPlan Neural Scheduler (v3.2):
 
 GRUNDPRINZIPIEN & DATENBASIS:
 - Als relevante Dienste zählen ausschließlich der Bereitschaftsdienst (D) und der Hintergrunddienst (HG).
-- Der Algorithmus arbeitet mit einer extremen Iterationstiefe: Er führt 15 Optimierungszyklen durch, in denen bis zu 150 Cross-Role-Tauschvorgänge (Swaps) pro Phase simuliert und auf Fairness getestet werden.
+- Der Algorithmus arbeitet mit einer extremen Iterationstiefe: Er führt 25 Optimierungszyklen durch, in denen bis zu 150 Cross-Role-Tauschvorgänge (Swaps) pro Phase simuliert und auf Fairness getestet werden.
 - Die Verteilung wird primär durch die Ausgewogenheit innerhalb des aktuellen Monats diktiert.
 - Historische Daten (seit 01.01. des Jahres) werden protokolliert, fungieren aber nur noch als "Tie-Breaker" bei absolut gleichwertigen Kandidaten im aktuellen Monat.
 - Manuell gesetzte Dienste (Fix-Dienste) haben absolute Priorität. Der Algorithmus passt sich um diese Anker herum an.
@@ -24,6 +24,7 @@ WOCHENEND- & FEIERTAGSLOGIK:
 - Das "Wochenende" umfasst Freitag, Samstag und Sonntag.
 - Die Belastungsberechnung erfolgt in Äquivalenten: Ein Wochenende mit mindestens einem D zählt als 1.0; ein Wochenende mit reinem HG zählt als 0.5. Das Ziel ist exakt 1.0 Einheiten pro Person.
 - Aufeinanderfolgende Wochenenden mit Dienst (egal ob D oder HG) sind verboten.
+- Wochenend-Fairness wird doppelt abgesichert: neben der Abweichung vom festen Ziel von exakt 1.0 Äquivalenten pro Person wird zusätzlich die Streuung um den tatsächlichen Gruppendurchschnitt bestraft. So trägt auch in einem engen Monat, in dem 1.0 nicht für alle exakt erreichbar ist, niemand deutlich mehr Wochenend-Last als die übrigen.
 - Die Samstags-Dienste (D) rotieren streng unter den Fachärzten. Ein zweiter Samstags-Dienst im selben Monat ist massiv strafbehaftet.
 - Feiertags-Alternanz: Wer an Ostern Dienst leistet, ist für Pfingsten gesperrt (und vice versa).
 
@@ -37,6 +38,11 @@ HINTERGRUNDDIENST (HG) ANTI-CLUSTERING:
 FAIRNESS & WORKLOAD-BALANCE (FA-GRUPPE):
 - Fachärzte, die im Monat weniger Bereitschaftsdienste (D) absolvieren, bekommen algorithmisch garantiert mehr Hintergrunddienste (HG) zugeteilt. Die Formel ist 1:1 (ein BD weniger = ein HG mehr als der Durchschnitt).
 - Die Art der HG-Belastung (anstrengender HG für AA vs. ruhigerer HG für FA) wird streng überwacht und ausbalanciert.
+
+ÜBERHANG-PRÄFERENZ (FÜNFTER DIENST):
+- Sind alle Bereitschaftsdienste bereits gleichmäßig und fair entsprechend der Monatsziele verteilt und MUSS dennoch ein zusätzlicher Dienst über dem Ziel vergeben werden (z. B. ein fünfter Dienst), erhält Dr. Lurz diesen ersten Überhang-Dienst bevorzugt.
+- Diese Präferenz greift ausschließlich für den ersten Dienst über dem Ziel (Ziel -> Ziel+1) und nur, wenn keine BD-Wünsche anderer Personen für genau diesen Tag etwas anderes festlegen. Weitere Überhang-Dienste werden wieder regulär nach Fairness verteilt.
+- Der Bonus ist bewusst klein gehalten: er erzwingt niemals einen unnötigen Überhang und verdrängt niemals eine Person, die ihr Ziel noch nicht erreicht hat.
 
 SPEZIFISCHE KOPPLUNGSREGELN (BUNDLING):
 Diese Regeln greifen deterministisch und überschreiben die Abstands-Regeln:

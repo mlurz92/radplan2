@@ -45,34 +45,205 @@
   box-shadow: var(--shadow-glow);
 }
 
-#btn-today, #btn-theme, #btn-density, #btn-cmdk {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  color: rgba(var(--ink-rgb),.55);
-  padding: 6px 9px;
+/* ── Segmentierte Icon-Buttons im Header (Task 6) ───────────────────────────
+   .hbtn-group fasst verwandte Icon-Aktionen zu einem zusammenhängenden,
+   gerahmten Segment mit Innen-Trennlinien zusammen. .hbtn-icon ist der
+   einheitliche quadratische Icon-Button. */
+.hbtn-group {
+  display: flex;
+  align-items: center;
+  background: var(--elev-1-bg);
+  border: 1px solid var(--elev-border-1);
   border-radius: var(--radius-sm);
-  transition: all .2s;
+  padding: 2px;
+  gap: 2px;
+  box-shadow: var(--elev-hi);
+}
+
+.hbtn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--text-3);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-spring);
+}
+
+.hbtn-icon:hover:not(:disabled) {
+  background: var(--elev-2-bg);
+  color: var(--ink-strong);
+}
+
+.hbtn-icon:active:not(:disabled) {
+  transform: scale(.88);
+}
+
+.hbtn-icon:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+
+#btn-today.today-btn-active {
+  background: var(--accent-soft);
+  color: var(--accent-lt);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.3);
+}
+
+/* ── Overflow-Menü (Task 6 / Task 19) ──────────────────────────────────── */
+.header-more {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
-#btn-today:hover, #btn-theme:hover, #btn-density:hover, #btn-cmdk:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border-h);
+.header-more > #btn-more {
+  background: var(--elev-1-bg);
+  border: 1px solid var(--elev-border-1);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-hi);
+}
+
+.header-more.open > #btn-more {
+  background: var(--elev-2-bg);
   color: var(--ink-strong);
-  transform: translateY(-1px);
+  border-color: var(--elev-border-3);
 }
 
-#btn-theme:active, #btn-density:active, #btn-cmdk:active {
-  transform: scale(.9);
+.header-menu {
+  position: fixed;
+  top: var(--hmenu-top, 56px);
+  right: var(--hmenu-right, 12px);
+  min-width: 248px;
+  padding: 6px;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(1.2);
+  border: 1px solid var(--elev-border-3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-shadow-3);
+  z-index: 1200;
+  transform-origin: top right;
+  animation: hmenuIn var(--dur-2) var(--ease-spring);
 }
 
-#btn-today.today-btn-active {
-  background: rgba(14,165,233,.15);
-  border-color: rgba(14,165,233,.3);
-  color: var(--accent-lt);
-  box-shadow: 0 0 12px rgba(14,165,233,.1);
+.header-menu[hidden] { display: none; }
+
+@keyframes hmenuIn {
+  from { opacity: 0; transform: translateY(-6px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+.hmenu-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 8px 10px 4px;
+}
+
+.hmenu-sep {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--elev-border-2);
+}
+
+.hmenu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+
+.hmenu-item:hover,
+.hmenu-item:focus-visible {
+  background: var(--elev-2-bg);
+  color: var(--ink-strong);
+  outline: none;
+}
+
+.hmenu-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.hmenu-item:hover .hmenu-ico { color: var(--accent-lt); }
+
+.hmenu-lbl { flex: 1; }
+
+.hmenu-kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: var(--elev-1-bg);
+  border: 1px solid var(--elev-border-1);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  letter-spacing: .02em;
+}
+
+.hmenu-state {
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--elev-2-bg);
+  border: 1px solid var(--elev-border-2);
+  position: relative;
+  flex-shrink: 0;
+  transition: background var(--dur-2) var(--ease-out);
+}
+
+.hmenu-state::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: transform var(--dur-2) var(--ease-spring), background var(--dur-2) var(--ease-out);
+}
+
+[aria-checked="true"] > .hmenu-state,
+.hmenu-item[aria-checked="true"] .hmenu-state {
+  background: var(--accent-soft-hover);
+  border-color: rgba(var(--accent-rgb),.5);
+}
+
+[aria-checked="true"] > .hmenu-state::after,
+.hmenu-item[aria-checked="true"] .hmenu-state::after {
+  transform: translateX(13px);
+  background: var(--accent-strong);
+}
+
+.hmenu-item-danger { color: #FCA5A5; }
+.hmenu-item-danger .hmenu-ico { color: #F87171; }
+.hmenu-item-danger:hover {
+  background: rgba(239,68,68,.14);
+  color: #FECACA;
+}
+.hmenu-item-danger:hover .hmenu-ico { color: #FCA5A5; }
 
 .mbtn {
   display: flex;
@@ -131,7 +302,7 @@
 .plan-hist-btn {
   background: rgba(251,191,36,.1);
   border: 1px solid rgba(251,191,36,.18);
-  color: rgba(var(--ink-rgb),.5);
+  color: var(--text-3);
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
@@ -188,7 +359,7 @@
 .plan-btn-abort {
   background: rgba(var(--ink-rgb),.07);
   border: 1px solid rgba(var(--ink-rgb),.12);
-  color: rgba(var(--ink-rgb),.6);
+  color: var(--text-2);
 }
 
 .plan-btn-abort:hover {
@@ -222,7 +393,7 @@
 .plan-btn-close {
   background: rgba(var(--ink-rgb),.07);
   border: 1px solid rgba(var(--ink-rgb),.12);
-  color: rgba(var(--ink-rgb),.6);
+  color: var(--text-2);
 }
 
 .plan-btn-close:hover {
@@ -510,7 +681,7 @@ body.plan-mode-active #btn-plan {
 }
 
 .text-input::placeholder {
-  color: var(--gray-400);
+  color: var(--gray-600);
 }
 
 .dropzone {
@@ -598,6 +769,28 @@ body.plan-mode-active #btn-plan {
   color: var(--gray-500);
 }
 
+/* Trennzeile "oder JSON-Text direkt einfügen" im Import-Dialog. Ohne eigene
+   Farbe erbt der Text die theme-abhängige Ink-Farbe und wäre im Dark-Mode
+   (weiß) auf der hellen Modal-Fläche unsichtbar. Feste Grautöne sorgen für
+   Lesbarkeit in beiden Themes. */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--gray-500);
+}
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--gray-200);
+}
+
 .dropzone.has-file .dz-hint {
   display: none;
 }
@@ -640,7 +833,7 @@ body.plan-mode-active #btn-plan {
   pointer-events: none;
   opacity: 0;
   transform: translateY(15px) scale(.94);
-  transition: opacity .25s, transform .3s cubic-bezier(.34,1.3,.64,1);
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--ease-spring);
   max-width: 380px;
   line-height: 1.4;
   display: flex;
@@ -687,38 +880,10 @@ body.plan-mode-active #btn-plan {
   transform: none;
 }
 
+/* data-tooltip wird vom globalen JS-Tooltip (js/tooltip.js) als schwebende,
+   nie abgeschnittene Sprechblase gerendert. Hier nur der Cursor-Hinweis. */
 [data-tooltip] {
-  position: relative;
   cursor: help;
-}
-
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(-8px);
-  background: rgba(var(--gray-900-rgb),.95);
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  max-width: 260px;
-  white-space: normal;
-  word-wrap: break-word;
-  line-height: 1.4;
-  opacity: 0;
-  pointer-events: none;
-  transition: all .2s;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,.2);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(var(--ink-rgb),.1);
-}
-
-[data-tooltip]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-4px);
 }
 
 @media (max-width: 1200px) {
@@ -828,6 +993,35 @@ body.is-mobile .plan-btn-auto span {
   transform-origin: bottom center;
 }
 
+/* Verbindungs-Caret zur Ankerzelle (klärt visuell „woher" das Menü kommt) */
+.cqp-caret {
+  position: absolute;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: var(--glass-light-bg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border-left: 1px solid var(--glass-light-border);
+  border-top: 1px solid var(--glass-light-border);
+  border-top-left-radius: 3px;
+  transform: rotate(45deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cell-quick-popover.cqp-above .cqp-caret {
+  top: auto;
+  bottom: -6px;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid var(--glass-light-border);
+  border-bottom: 1px solid var(--glass-light-border);
+  border-top-left-radius: 0;
+  border-bottom-right-radius: 3px;
+}
+
 .cell-quick-popover-inner {
   display: flex;
   flex-direction: column;
@@ -918,6 +1112,112 @@ body.is-mobile .plan-btn-auto span {
 .cqp-more:hover {
   background: var(--glass-bg-hover);
   color: var(--ink-on-glass-light);
+}
+
+/* Kopfzeile + Abschnitts-Label im Schnellmenü */
+.cqp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 1px 5px 2px;
+  margin-bottom: 1px;
+  border-bottom: 1px solid var(--glass-light-border);
+}
+
+.cqp-header-right {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cqp-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(var(--gray-900-rgb), .55);
+  transition: background .14s, color .14s, transform .14s, border-color .14s;
+}
+
+.cqp-close:hover {
+  background: var(--red-bg, rgba(239,68,68,.12));
+  border-color: var(--glass-light-border);
+  color: var(--red-dark, #b91c1c);
+  transform: rotate(90deg);
+}
+
+.cqp-close:active {
+  transform: rotate(90deg) scale(.9);
+}
+
+.cqp-header-emp {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-on-glass-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cqp-header-meta {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: rgba(var(--gray-900-rgb), .55);
+}
+
+.cell-quick-popover-inner.cqp-multi .cqp-header {
+  border-bottom-color: var(--accent);
+}
+
+.cell-quick-popover-inner.cqp-multi .cqp-header-meta {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .12);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.cqp-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(var(--gray-900-rgb), .42);
+  margin: 2px 2px -2px;
+}
+
+.cqp-status {
+  flex: 1 0 auto;
+  min-width: 30px;
+  padding: 6px 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-align: center;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--glass-light-border);
+  background: var(--glass-bg);
+  color: var(--ink-on-glass-light);
+  transition: transform .15s cubic-bezier(.34,1.4,.64,1), background .15s, color .15s, box-shadow .15s;
+}
+
+.cqp-status:hover {
+  background: var(--st-bg, var(--glass-bg-hover));
+  color: var(--st-fg, var(--ink-on-glass-light));
+  transform: translateY(-1px);
+}
+
+.cqp-status.active {
+  box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.18);
 }
 
 /* --- Mobile: radial quick-action menu --- */
@@ -1049,7 +1349,7 @@ body.modal-open .cell-quick-popover {
 }
 
 .cmdk-input::placeholder {
-  color: var(--gray-400);
+  color: var(--gray-600);
 }
 
 .cmdk-esc {
@@ -1113,7 +1413,10 @@ body.modal-open .cell-quick-popover {
 }
 
 .cmdk-item.cmdk-active .cmdk-item-hint {
-  color: var(--accent);
+  /* Befehlspalette ist in beiden Themes eine helle Fläche; das helle --accent
+     auf der accent-dim-Zeile liegt unter WCAG AA. Dunklerer Akzent sorgt für
+     Lesbarkeit. */
+  color: #0369A1;
 }
 
 .cmdk-empty {
@@ -1121,4 +1424,116 @@ body.modal-open .cell-quick-popover {
   text-align: center;
   font-size: 13px;
   color: var(--gray-500);
+}
+
+/* ============================================================================
+   MOTION-KONSOLIDIERUNG & SKELETON-LOADER (Task 8)
+   ----------------------------------------------------------------------------
+   Eine einheitliche Bewegungs- und Ladezustandssprache. Die Tokens
+   --dur-* / --ease-* (core.css) sind die gemeinsame Grundlage; hier folgen
+   die wiederverwendbaren Lade-Platzhalter (Skeletons) mit Shimmer für
+   asynchrone Inhalte (Diagramme, Team-Analytics, Server-Sync) sowie ein
+   global wirksamer Respekt vor „reduzierter Bewegung".
+   ============================================================================ */
+
+/* Shimmer-Platzhalter. Auf den themed Canvas abgestimmte Tinte, damit das
+   Skeleton in Hell- wie Dunkelmodus glaubwürdig „leer" wirkt. */
+.skeleton,
+.skeleton-text,
+.skeleton-chart {
+  position: relative;
+  overflow: hidden;
+  background: rgba(var(--ink-rgb), .06);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton::after,
+.skeleton-text::after,
+.skeleton-chart::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--ink-rgb), .09) 45%,
+    rgba(var(--ink-rgb), .14) 50%,
+    rgba(var(--ink-rgb), .09) 55%,
+    transparent 100%
+  );
+  animation: skeletonShimmer 1.25s var(--ease-in-out) infinite;
+}
+
+.skeleton-text {
+  height: 11px;
+  margin: 6px 0;
+}
+.skeleton-text.w-40 { width: 40%; }
+.skeleton-text.w-60 { width: 60%; }
+.skeleton-text.w-80 { width: 80%; }
+
+.skeleton-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  border-radius: var(--radius);
+}
+
+/* Ringförmiges Lade-Skeleton (für Donut-Diagramme). */
+.skeleton-donut {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, transparent 54%, rgba(var(--ink-rgb), .06) 55%);
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+}
+.skeleton-donut::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(var(--ink-rgb), .12), transparent);
+  animation: skeletonShimmer 1.25s var(--ease-in-out) infinite;
+}
+
+@keyframes skeletonShimmer {
+  to { transform: translateX(100%); }
+}
+
+/* Generischer Lade-Schleier, der über einen bereits gerenderten Container
+   gelegt werden kann (z. B. Server-Sync läuft). */
+.is-loading-overlay {
+  position: relative;
+  pointer-events: none;
+}
+.is-loading-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--ink-rgb), .04);
+  backdrop-filter: blur(1px);
+  z-index: 3;
+  border-radius: inherit;
+}
+
+/* Sanftes Einblenden frisch eingesetzter Inhalte — ersetzt harte Sprünge. */
+.motion-fade-in {
+  animation: motionFadeIn var(--dur-3) var(--ease-out) both;
+}
+@keyframes motionFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .skeleton-text::after,
+  .skeleton-chart::after,
+  .skeleton-donut::after { animation: none; }
+  .header-menu,
+  .motion-fade-in { animation: none !important; }
 }

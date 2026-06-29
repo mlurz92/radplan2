@@ -1,0 +1,115 @@
+/* ===========================================================================
+   Auswertungs-Hub · Modul „Abdeckung & Risiko" (modulspezifische .cov-*)
+   Gemeinsame .ah-* Klassen kommen aus analytics.css. Status-Hintergründe als
+   rgba von #22C55E / #F59E0B / #EF4444, damit Light + Dark funktionieren.
+   =========================================================================== */
+
+.cov-module { display: block; }
+
+/* --- Legende -------------------------------------------------------------- */
+.cov-legend {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin: 2px 0 12px; font-size: 11px; color: var(--text-2);
+}
+.cov-leg { display: inline-flex; align-items: center; gap: 6px; }
+.cov-swatch {
+  width: 13px; height: 13px; border-radius: 4px; display: inline-block;
+  border: 1px solid rgba(148, 163, 184, .35);
+}
+.cov-swatch.cov-full { background: rgba(34, 197, 94, .28); border-color: rgba(34, 197, 94, .6); }
+.cov-swatch.cov-partial { background: rgba(245, 158, 11, .30); border-color: rgba(245, 158, 11, .6); }
+.cov-swatch.cov-none { background: rgba(239, 68, 68, .30); border-color: rgba(239, 68, 68, .6); }
+.cov-swatch.cov-wehol-swatch { background: transparent; border: 2px solid var(--text-3); }
+
+/* --- Kalender ------------------------------------------------------------- */
+.cov-cal-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 14px;
+}
+.cov-cal-block {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 10px 10px 12px;
+  background: var(--gray-50, transparent);
+}
+.cov-cal-head {
+  font-size: 12px; font-weight: 800; color: var(--text-1);
+  margin-bottom: 8px; letter-spacing: .01em;
+}
+.cov-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.cov-cal-dow {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-3); text-align: center; padding-bottom: 2px;
+  letter-spacing: .03em;
+}
+
+.cov-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  transition: transform .08s ease;
+}
+.cov-cell:not(.cov-cell-empty):hover { transform: scale(1.06); z-index: 2; }
+.cov-cell-empty { background: transparent; border-color: transparent; }
+
+.cov-daynum { font-size: 12px; font-weight: 700; color: var(--text-1); line-height: 1; }
+
+.cov-full    { background: rgba(34, 197, 94, .22);  border-color: rgba(34, 197, 94, .40); }
+.cov-partial { background: rgba(245, 158, 11, .24); border-color: rgba(245, 158, 11, .45); }
+.cov-none    { background: rgba(239, 68, 68, .24);  border-color: rgba(239, 68, 68, .50); }
+
+/* Wochenend-/Feiertagszellen kräftiger markieren. */
+.cov-cell.cov-wehol {
+  border-width: 2px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .25);
+}
+.cov-cell.cov-wehol .cov-daynum { font-weight: 800; }
+
+/* D/HG-Indikatoren */
+.cov-ind { display: inline-flex; gap: 4px; align-items: center; }
+.cov-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-style: normal; font-size: 6.5px; font-weight: 800; line-height: 1;
+  border: 1px solid rgba(0, 0, 0, .15);
+}
+.cov-dot::after { content: attr(data-l); color: #fff; }
+.cov-dot.cov-on  { background: #16a34a; }
+.cov-dot.cov-off { background: transparent; border-color: rgba(239, 68, 68, .7); }
+.cov-dot.cov-off::after { color: rgba(239, 68, 68, .9); }
+
+/* --- Lückenliste Ergänzungen --------------------------------------------- */
+.cov-dow {
+  display: inline-block; min-width: 20px; font-weight: 700; color: var(--text-2);
+}
+.cov-holname { color: #B45309; font-weight: 600; }
+.cov-have { color: var(--text-3); font-size: 11px; }
+.cov-row-wehol { background: rgba(148, 163, 184, .08); }
+.cov-row-wehol td:first-child { box-shadow: inset 3px 0 0 rgba(245, 158, 11, .8); }
+
+/* --- Portrait-Mobile: Monatsblöcke untereinander, Zellen schrumpfen --- */
+@media (max-width: 560px) {
+  .cov-cal-wrap { grid-template-columns: 1fr; gap: 12px; }
+  .cov-cal-grid { gap: 2px; }
+  .cov-cell { gap: 1px; border-radius: 5px; }
+  .cov-daynum { font-size: 11px; }
+  .cov-dot { width: 8px; height: 8px; font-size: 6px; }
+  .cov-legend { gap: 8px 12px; }
+}
+@media (max-width: 380px) {
+  .cov-cal-block { padding: 8px 7px 10px; }
+  .cov-cal-grid { gap: 1.5px; }
+  .cov-daynum { font-size: 10px; }
+  .cov-dot { width: 7px; height: 7px; }
+}

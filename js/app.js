@@ -88,10 +88,15 @@ import {
   queueResponsiveRefresh,
   scrollToToday as doScrollToToday,
   focusCellAfterRender,
+  closeCellQuickPopover,
+  openCellQuickPopoverFor,
   initGridKeyboardHandlers,
   openRadialQuickMenu,
   updateRadialHover,
-  releaseRadialMenu
+  releaseRadialMenu,
+  updateGridCell,
+  updateAllConflicts,
+  updateGridStatsAndHeader
 } from './render-grid.js';
 
 import {
@@ -99,7 +104,10 @@ import {
   hideOverlay,
   showToast,
   openProfileModal,
-  openScoreInfoModal
+  openScoreInfoModal,
+  showTeamScreen,
+  showPersonScreen,
+  applyPersonTab
 } from './render-modals.js';
 
 import { renderDeptContent } from './render-dept.js';
@@ -117,10 +125,14 @@ import {
 } from './autoplan.js';
 
 import { NeuralGraph } from './neuralgraph.js';
-import { openYearPlan, setupYearPlanModal, renderYearPlanContent, setYearPlanYear, cleanupYearPlan } from './yearplan.js';
-import { initCommandPalette } from './commandpalette.js';
+import { openAnalyticsHub } from './analytics/hub.js';
+import { initCommandPalette, openCommandPalette } from './commandpalette.js';
 import { withViewTransition, withThemeViewTransition } from './viewtransition.js';
-import { initNewFeatures, generatePDF } from './features/index.js';
+import { initNormalHistory, normalUndo, normalRedo, updateNormalHistoryUI } from './history.js';
+import { initCellTooltips } from './celltooltip.js';
+import { initTooltips } from './tooltip.js';
+import { openPrintPreview } from './printpreview.js';
+import { icon, setIcon, injectBrandIcon } from './icons.js';
 
 let localAutoPlanResult = null;
 let localAutoPlanTargets = {};
@@ -147,12 +159,21 @@ export function applyTheme(theme) {
   if (sunIcon) sunIcon.style.display = theme === "light" ? "" : "none";
   const btn = document.getElementById("btn-theme");
   if (btn) btn.title = theme === "light" ? "Dunkelmodus aktivieren" : "Hellmodus aktivieren";
+  const mMoon = document.getElementById("mbtn-theme-moon");
+  const mSun = document.getElementById("mbtn-theme-sun");
+  if (mMoon) mMoon.style.display = theme === "light" ? "none" : "";
+  if (mSun) mSun.style.display = theme === "light" ? "" : "none";
+  
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon) {
+    favicon.setAttribute('href', `img/icon.svg?update=${Date.now()}&theme=${theme}`);
+  }
 }
 
 export function setTheme(theme, persist = true) {
   applyTheme(theme);
   if (persist) {
-    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* localStorage unavailable */ }
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) {}
   }
 }
 
@@ -165,12 +186,12 @@ export function toggleTheme(originEvent) {
 export function initTheme() {
   applyTheme(getTheme());
   let explicitPreference = false;
-  try { explicitPreference = localStorage.getItem(THEME_STORAGE_KEY) !== null; } catch (e) { /* ignore */ }
+  try { explicitPreference = localStorage.getItem(THEME_STORAGE_KEY) !== null; } catch (e) {}
   if (!explicitPreference && window.matchMedia) {
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     mq.addEventListener?.("change", (e) => {
       let stillExplicit = false;
-      try { stillExplicit = localStorage.getItem(THEME_STORAGE_KEY) !== null; } catch (err) { /* ignore */ }
+      try { stillExplicit = localStorage.getItem(THEME_STORAGE_KEY) !== null; } catch (err) {}
       if (!stillExplicit) setTheme(e.matches ? "light" : "dark", false);
     });
   }
@@ -195,7 +216,7 @@ export function applyDensity(density) {
 export function setDensity(density, persist = true) {
   applyDensity(density);
   if (persist) {
-    try { localStorage.setItem(DENSITY_STORAGE_KEY, density); } catch (e) { /* localStorage unavailable */ }
+    try { localStorage.setItem(DENSITY_STORAGE_KEY, density); } catch (e) {}
   }
   refreshResponsiveLayout({ forceRender: true });
 }
@@ -206,8 +227,129 @@ export function toggleDensity() {
 
 export function initDensity() {
   let saved = null;
-  try { saved = localStorage.getItem(DENSITY_STORAGE_KEY); } catch (e) { /* ignore */ }
+  try { saved = localStorage.getItem(DENSITY_STORAGE_KEY); } catch (e) {}
   applyDensity(saved === "compact" ? "compact" : "cozy");
+}
+
+let headerMenuOutsideHandler = null;
+
+export function isHeaderMenuOpen() {
+  const menu = document.getElementById("header-menu");
+  return !!menu && !menu.hasAttribute("hidden");
+}
+
+export function closeHeaderMenu() {
+  const menu = document.getElementById("header-menu");
+  const wrap = document.querySelector(".header-more");
+  const btn = document.getElementById("btn-more");
+  if (!menu || menu.hasAttribute("hidden")) return;
+  menu.setAttribute("hidden", "");
+  wrap?.classList.remove("open");
+  btn?.setAttribute("aria-expanded", "false");
+  if (headerMenuOutsideHandler) {
+    document.removeEventListener("pointerdown", headerMenuOutsideHandler, true);
+    document.removeEventListener("keydown", headerMenuOutsideHandler, true);
+    headerMenuOutsideHandler = null;
+  }
+}
+
+export function openHeaderMenu() {
+  const menu = document.getElementById("header-menu");
+  const wrap = document.querySelector(".header-more");
+  const btn = document.getElementById("btn-more");
+  if (!menu || !menu.hasAttribute("hidden")) return;
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    menu.style.setProperty("--hmenu-top", `${Math.round(r.bottom + 8)}px`);
+    menu.style.setProperty("--hmenu-right", `${Math.round(window.innerWidth - r.right)}px`);
+  }
+  menu.removeAttribute("hidden");
+  wrap?.classList.add("open");
+  btn?.setAttribute("aria-expanded", "true");
+  menu.querySelector(".hmenu-item")?.focus();
+  headerMenuOutsideHandler = (e) => {
+    if (e.type === "keydown") {
+      if (e.key === "Escape") { closeHeaderMenu(); btn?.focus(); }
+      return;
+    }
+    if (!menu.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+      closeHeaderMenu();
+    }
+  };
+  document.addEventListener("pointerdown", headerMenuOutsideHandler, true);
+  document.addEventListener("keydown", headerMenuOutsideHandler, true);
+}
+
+function initHeaderOverflowMenu() {
+  const btn = document.getElementById("btn-more");
+  const menu = document.getElementById("header-menu");
+  if (!btn || !menu) return;
+
+  menu.querySelectorAll(".hmenu-item[data-icon]").forEach((item) => {
+    const ico = item.querySelector(".hmenu-ico");
+    if (ico && !ico.childElementCount) setIcon(ico, item.dataset.icon, { size: 16 });
+  });
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    isHeaderMenuOpen() ? closeHeaderMenu() : openHeaderMenu();
+  });
+
+  menu.addEventListener("click", (e) => {
+    const item = e.target.closest(".hmenu-item");
+    if (!item) return;
+    if (item.id === "btn-colorblind" || item.id === "btn-density") return;
+    closeHeaderMenu();
+  });
+
+  menu.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const items = [...menu.querySelectorAll(".hmenu-item")];
+    const idx = items.indexOf(document.activeElement);
+    const next = e.key === "ArrowDown"
+      ? items[(idx + 1) % items.length]
+      : items[(idx - 1 + items.length) % items.length];
+    next?.focus();
+  });
+}
+
+const COLORBLIND_STORAGE_KEY = "radplan_v3_colorblind";
+
+export function isColorblind() {
+  return document.documentElement.getAttribute("data-cb") === "1";
+}
+
+export function applyColorblind(on) {
+  if (on) document.documentElement.setAttribute("data-cb", "1");
+  else document.documentElement.removeAttribute("data-cb");
+  ["btn-colorblind", "mbtn-colorblind"].forEach((id) => {
+    document.getElementById(id)?.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
+
+export function setColorblind(on, persist = true) {
+  applyColorblind(on);
+  if (persist) {
+    try { localStorage.setItem(COLORBLIND_STORAGE_KEY, on ? "1" : "0"); } catch (e) {}
+  }
+}
+
+function initColorblindToggle() {
+  const stored = (() => { try { return localStorage.getItem(COLORBLIND_STORAGE_KEY) === "1"; } catch (e) { return false; } })();
+  applyColorblind(stored);
+  const desktopItem = document.getElementById("btn-colorblind");
+  if (desktopItem) {
+    const ico = desktopItem.querySelector(".hmenu-ico");
+    if (ico && !ico.childElementCount) setIcon(ico, "eye", { size: 16 });
+  }
+  const toggle = () => {
+    const next = !isColorblind();
+    setColorblind(next);
+    showToast(next ? "Farbenblind-sicherer Modus aktiviert" : "Farbenblind-sicherer Modus deaktiviert");
+  };
+  desktopItem?.addEventListener("click", toggle);
+  document.getElementById("mbtn-colorblind")?.addEventListener("click", toggle);
 }
 
 export function isPeriodFlyoutOpen() {
@@ -384,6 +526,7 @@ export function enterPlanMode() {
   loadPlanSessionForState(y, m);
   localAutoPlanTargets = {};
   render();
+  updateNormalHistoryUI();
   showToast("Planungsmodus aktiv");
 }
 
@@ -395,6 +538,7 @@ export function exitPlanMode() {
   setPlanHistory([]);
   setPlanHistoryIdx(-1);
   render();
+  updateNormalHistoryUI();
 }
 
 export function getWish(emp, day) {
@@ -584,9 +728,29 @@ export function redoPlan() {
 
 export function openEditor(emp, day, options = {}) {
   const { year: y, month: m } = state;
-  const { ctrlKey = false } = options;
+  const { ctrlKey = false, shiftKey = false } = options;
   const isRbnRow = emp === RBN_ROW_KEY;
-  
+
+  if (shiftKey && !isRbnRow) {
+    if (state.multiEdit.emp !== emp || !state.multiEdit.days.length) {
+      state.multiEdit.emp = emp;
+      state.multiEdit.days = [day];
+      state.multiEdit.anchor = day;
+    } else {
+      const anchor = state.multiEdit.anchor || state.multiEdit.days[0];
+      const lo = Math.min(anchor, day);
+      const hi = Math.max(anchor, day);
+      const range = [];
+      for (let dd = lo; dd <= hi; dd++) range.push(dd);
+      state.multiEdit.days = range;
+      state.multiEdit.anchor = anchor;
+    }
+    render();
+    openCellQuickPopoverFor(emp, day);
+    showToast(`${state.multiEdit.days.length} Tage für ${emp} markiert (Bereich)`);
+    return;
+  }
+
   if (ctrlKey && !isRbnRow) {
     if (state.multiEdit.emp !== emp) {
       state.multiEdit.emp = emp;
@@ -599,7 +763,10 @@ export function openEditor(emp, day, options = {}) {
       state.multiEdit.days.push(day);
       state.multiEdit.days.sort((a, b) => a - b);
     }
+    state.multiEdit.anchor = day;
     render();
+    if (state.multiEdit.days.length) openCellQuickPopoverFor(emp, day);
+    else closeCellQuickPopover();
     showToast(state.multiEdit.days.length ? `${state.multiEdit.days.length} Tage für ${emp} markiert` : "Mehrfachauswahl aufgehoben");
     return;
   }
@@ -674,7 +841,6 @@ export function openEditor(emp, day, options = {}) {
     if (planBadge) planBadge.style.display = "none";
   }
   
-  // Kommentar laden
   const commentTa = document.getElementById("ed-comment-ta");
   const commentCount = document.getElementById("ed-comment-count");
   const commentSection = document.getElementById("ed-comment-section");
@@ -715,7 +881,7 @@ export function refreshEditorChips() {
     if (dutyWarn) dutyWarn.style.display = "none";
   } else {
     if (wpLabel) wpLabel.textContent = "Arbeitsplatz";
-    if (wpHint) wpHint.textContent = "— Mehrfachauswahl möglich, z. B. MR/CT";
+    if (wpHint) wpHint.textContent = "— Mehrfachauswahl möglich, z. B. MR/CT";
     if (stSection) stSection.style.display = "";
     if (dutySection) dutySection.style.display = "";
     if (dutySection?.parentElement?.classList.contains("ed-step")) {
@@ -984,15 +1150,7 @@ export function saveEditor() {
   const assignment = st ? st : wp.length ? wp.join("/") : null;
   
   if (planMode) recordPlanHistory();
-
-  // Record global history for undo/redo in normal mode
-  if (!planMode) {
-    recordHistory({
-      type: "cell-edit",
-      description: `${emp}, Tag ${day}: ${assignment || duty || "gelöscht"}`
-    });
-  }
-
+  
   let autoFCount = 0;
   days.forEach((targetDay) => {
     setCell(y, m, emp, targetDay, {
@@ -1015,7 +1173,6 @@ export function saveEditor() {
   
   if (planMode) recordPlanHistory();
 
-  // Kommentar speichern (nur für den primären Tag, nicht für alle Multi-Edit-Tage)
   if (!isRbnRow) {
     const commentTa = document.getElementById("ed-comment-ta");
     if (commentTa) {
@@ -1024,7 +1181,7 @@ export function saveEditor() {
   }
 
   hideOverlay("modal-editor");
-  state.multiEdit = { emp: null, days: [] };
+  state.multiEdit = { emp: null, days: [], anchor: null };
   if (days.length > 1) {
     const fSuffix = autoFCount > 0 ? ` (inkl. ${autoFCount}x F automatisch)` : "";
     showToast(`${days.length} Tage gespeichert${fSuffix}`);
@@ -1050,10 +1207,8 @@ export function confirmRemoveEmployee(name, refreshList = false) {
 export function confirmRemoveEmployeeFuture(name) {
   const { year: y, month: m } = state;
   if (confirm(`„${name}" ab ${MONTHS[m]} ${y} dauerhaft (auch aus allen Folgemonaten) entfernen?\n\nACHTUNG: Dies löscht den Mitarbeiter und alle seine Dienste unwiderruflich aus der Datenbank für die Zukunft.`)) {
-    // 1. Current month removal
     removeEmployee(y, m, name);
 
-    // 2. Clear from DATA for all future months
     const currentKey = monthKey(y, m);
     const [cY, cM] = currentKey.split('-').map(Number);
     Object.keys(DATA).forEach(key => {
@@ -1065,7 +1220,6 @@ export function confirmRemoveEmployeeFuture(name) {
       }
     });
 
-    // 3. Clear from active Plan-Sessions if applicable
     if (planMode && planSessions) {
       Object.keys(planSessions).forEach(key => {
         if (key >= currentKey && planSessions[key]) {
@@ -1320,16 +1474,10 @@ export function printPlan() {
   }
   document.title = `RadPlan — ${MONTHS[month]} ${year}`;
 
-  // Guarantee the whole grid fits ONE landscape-A4 page vertically too.
-  // The print stylesheet already fits the width (table-layout:fixed), but a
-  // large department can still overflow downward. Estimate the printed height
-  // from the row count and derive a uniform scale that the print stylesheet
-  // applies via transform — with an inverse width so the page stays full-bleed.
   const table = document.getElementById("plan-table");
   const rows = table ? table.querySelectorAll("tr").length : 0;
-  // A4 landscape @96dpi, 8mm margins, minus print header/footer ≈ usable px.
   const USABLE_H = 680;
-  const PRINT_ROW_H = 15; // matches the compact print row metrics
+  const PRINT_ROW_H = 15;
   const estHeight = rows * PRINT_ROW_H + 24;
   const scale = Math.min(1, USABLE_H / Math.max(estHeight, 1));
   document.documentElement.style.setProperty("--print-scale", scale.toFixed(4));
@@ -1344,8 +1492,7 @@ export function doExport() {
     if (k && k.startsWith("radplan_v3_plan_")) {
       try {
         plans[k.replace("radplan_v3_plan_", "")] = JSON.parse(localStorage.getItem(k));
-      } catch (e) {
-      }
+      } catch (e) {}
     }
   }
   
@@ -1861,7 +2008,10 @@ export async function streamProgressLogs(result) {
       dutyType = "HG";
     }
 
-    if (entry.icon === "→" || entry.icon === "🟣") {
+    const isAssignment = entry.icon === "→" || entry.icon === "🟣" || entry.icon === "🩹";
+    const isSwap = entry.icon === "🔀" || entry.icon === "🔁" || entry.icon === "🧠";
+
+    if (isAssignment) {
       if (dutyType === "HG") {
         hgCount++; 
       } else {
@@ -1869,21 +2019,14 @@ export async function streamProgressLogs(result) {
       }
     }
     
-    if (entry.icon === "🔀" || entry.icon === "🔁" || entry.icon === "🧠") {
+    if (isSwap) {
       swapCount++;
     }
     
     const bdEl = document.getElementById("ap-ls-bd");
-    if (bdEl) bdEl.textContent = bdCount;
-    
     const hgEl = document.getElementById("ap-ls-hg");
-    if (hgEl) hgEl.textContent = hgCount;
-    
     const swapEl = document.getElementById("ap-ls-swaps");
-    if (swapEl) swapEl.textContent = swapCount;
-    
     const rulesEl = document.getElementById("ap-ls-rules");
-    if (rulesEl) rulesEl.textContent = telemetry.length;
 
     if (logContainer) {
       const div = document.createElement("div");
@@ -1895,11 +2038,11 @@ export async function streamProgressLogs(result) {
     }
 
     if (neuralGraphInstance) {
-      if (entry.icon === "🔀" || entry.icon === "🔁" || entry.icon === "🧠") {
+      if (isSwap) {
         if (entry.dayIdx !== undefined && entry.oldEmpId && entry.newEmpId) {
           neuralGraphInstance.triggerSwap(entry.dayIdx, entry.oldEmpId, entry.newEmpId, dutyType);
         }
-      } else if (entry.icon === "→" || entry.icon === "🟣") {
+      } else if (isAssignment) {
         if (entry.dayIdx !== undefined) {
           if (entry.oldEmpId && entry.newEmpId) {
             neuralGraphInstance.triggerSwap(entry.dayIdx, entry.oldEmpId, entry.newEmpId, dutyType);
@@ -1913,7 +2056,15 @@ export async function streamProgressLogs(result) {
           neuralGraphInstance.triggerError(entry.dayIdx, entry.newEmpId || entry.empId, dutyType);
         }
       }
-      
+
+      // Recalculate filled counts based on neural graph state
+      bdCount = 0;
+      hgCount = 0;
+      for (const [dayIdx, cellData] of neuralGraphInstance.cells.entries()) {
+        if (cellData.dSlot.classList.contains('has-val')) bdCount++;
+        if (cellData.hgSlot.classList.contains('has-val')) hgCount++;
+      }
+
       if (entry.phase === "deep") {
         if (i % 10 === 0) neuralGraphInstance.setPhase("deep");
         if (progTitle && progTitle.textContent !== "Deep-Search Optimierung") {
@@ -1936,6 +2087,11 @@ export async function streamProgressLogs(result) {
         }
       }
     }
+
+    if (bdEl) bdEl.textContent = bdCount;
+    if (hgEl) hgEl.textContent = hgCount;
+    if (swapEl) swapEl.textContent = swapCount;
+    if (rulesEl) rulesEl.textContent = telemetry.length;
 
     if (barEl) barEl.style.width = entry.pct + "%";
     if (pctEl) pctEl.textContent = entry.pct + "%";
@@ -2362,81 +2518,143 @@ export function applyAutoPlan() {
   localAutoPlanResult = null;
 }
 
+export function clearMultiSelection() {
+  state.multiEdit = { emp: null, days: [], anchor: null };
+  closeCellQuickPopover();
+  render();
+  showToast("Auswahl aufgehoben");
+}
+
+export function quickTargetDays(emp, day) {
+  const me = state.multiEdit;
+  if (me?.emp === emp && Array.isArray(me.days) && me.days.length > 1 && me.days.includes(day)) {
+    return [...me.days].sort((a, b) => a - b);
+  }
+  return [day];
+}
+
+function suffixForSkips(skipped) {
+  return skipped ? ` · ${skipped} übersprungen` : "";
+}
+
 export function quickToggleWorkplace(emp, day, wpCode) {
   const { year: y, month: m } = state;
-  const cell = getCell(y, m, emp, day);
+  const days = quickTargetDays(emp, day);
+  const multi = days.length > 1;
+  const wp = WORKPLACES.find(w => w.code === wpCode);
 
-  const existingParts = (cell.assignment || "").split("/").map(x => x.trim()).filter(Boolean);
-  const hasStatus = existingParts.some(p => STATUSES.find(s => s.code === p));
-  if (hasStatus) {
+  const anchorParts = (getCell(y, m, emp, day).assignment || "").split("/").map(x => x.trim()).filter(Boolean);
+  const anchorHasStatus = anchorParts.some(p => STATUSES.find(s => s.code === p));
+  if (!multi && anchorHasStatus) {
     showToast("Status aktiv — Editor öffnen zum Bearbeiten");
     return;
   }
-
-  const existingWPs = existingParts.filter(p => WORKPLACES.find(w => w.code === p));
-  const newWPs = existingWPs.includes(wpCode)
-    ? existingWPs.filter(w => w !== wpCode)
-    : [...existingWPs, wpCode];
-
-  const newAssignment = newWPs.length ? newWPs.join("/") : null;
+  const remove = anchorParts.includes(wpCode);
 
   if (planMode) recordPlanHistory();
-  if (!planMode) {
-    recordHistory({
-      type: "quick-edit",
-      description: `${emp}, Tag ${day}: ${wp?.label || wpCode} ${newWPs.includes(wpCode) ? "gesetzt" : "entfernt"}`
+  let changed = 0;
+  let skipped = 0;
+  days.forEach(d => {
+    const cell = getCell(y, m, emp, d);
+    const parts = (cell.assignment || "").split("/").map(x => x.trim()).filter(Boolean);
+    if (parts.some(p => STATUSES.find(s => s.code === p))) { skipped++; return; }
+    const wps = parts.filter(p => WORKPLACES.find(w => w.code === p));
+    const next = remove
+      ? wps.filter(w => w !== wpCode)
+      : (wps.includes(wpCode) ? wps : [...wps, wpCode]);
+    setCell(y, m, emp, d, { assignment: next.length ? next.join("/") : null, duty: cell.duty || null });
+    changed++;
+  });
+  if (planMode) recordPlanHistory();
+
+  const label = wp?.label || wpCode;
+  const verb = remove ? "entfernt" : "gesetzt";
+  const msg = multi
+    ? `${label} ${verb} · ${changed} ${changed === 1 ? "Tag" : "Tage"}${suffixForSkips(skipped)}`
+    : `${label} ${verb}`;
+  showToast(msg);
+  announceToScreenReader(msg);
+
+  if (IS_MOBILE) {
+    render();
+    focusCellAfterRender(emp, day);
+  } else {
+    days.forEach(d => {
+      const cell = getCell(y, m, emp, d);
+      const parts = (cell.assignment || "").split("/").map(x => x.trim()).filter(Boolean);
+      if (parts.some(p => STATUSES.find(s => s.code === p))) return;
+      updateGridCell(emp, d);
     });
+    updateAllConflicts();
+    updateGridStatsAndHeader();
   }
-  setCell(y, m, emp, day, { assignment: newAssignment, duty: cell.duty || null });
-  if (planMode) recordPlanHistory();
-
-  const wp = WORKPLACES.find(w => w.code === wpCode);
-  showToast(newWPs.includes(wpCode)
-    ? `${wp?.label || wpCode} gesetzt`
-    : `${wp?.label || wpCode} entfernt`);
-  render();
-  focusCellAfterRender(emp, day);
 }
 
 export function quickToggleDuty(emp, day, dutyCode) {
   const { year: y, month: m } = state;
-  const cell = getCell(y, m, emp, day);
+  const days = quickTargetDays(emp, day);
+  const multi = days.length > 1;
 
-  const owner = dutyOwner(y, m, day, dutyCode);
-  if (owner && owner !== emp) {
-    showToast(`${dutyCode} bereits vergeben an: ${owner}`);
-    return;
-  }
+  const remove = getCell(y, m, emp, day).duty === dutyCode;
 
-  const newDuty = cell.duty === dutyCode ? null : dutyCode;
-
-  if (planMode) recordPlanHistory();
-  if (!planMode) {
-    recordHistory({
-      type: "quick-duty",
-      description: `${emp}, Tag ${day}: ${newDuty ? newDuty + " gesetzt" : dutyCode + " entfernt"}`
-    });
-  }
-  setCell(y, m, emp, day, { assignment: cell.assignment || null, duty: newDuty });
-
-  if (newDuty === "D") {
-    const next = nextCalendarDay(y, m, day);
-    const ex = getCell(next.y, next.m, emp, next.d);
-    if (!ex.assignment) {
-      setCell(next.y, next.m, emp, next.d, { assignment: "F", duty: ex.duty || null });
-      showToast("Bereitschaftsdienst gesetzt · F automatisch für Folgetag");
-    } else {
-      showToast("Bereitschaftsdienst gesetzt");
+  if (!multi) {
+    const owner = dutyOwner(y, m, day, dutyCode);
+    if (!remove && owner && owner !== emp) {
+      showToast(`${dutyCode} bereits vergeben an: ${owner}`);
+      return;
     }
-  } else if (newDuty === "HG") {
-    showToast("Hintergrunddienst gesetzt");
-  } else {
-    showToast(`${dutyCode === "HG" ? "HG" : "BD"} entfernt`);
   }
 
   if (planMode) recordPlanHistory();
-  render();
-  focusCellAfterRender(emp, day);
+  let changed = 0;
+  let skipped = 0;
+  let autoFreeDay = false;
+  const affectedCells = [];
+  days.forEach(d => {
+    const cell = getCell(y, m, emp, d);
+    if (!remove) {
+      const owner = dutyOwner(y, m, d, dutyCode);
+      if (owner && owner !== emp) { skipped++; return; }
+    }
+    const newDuty = remove ? null : dutyCode;
+    setCell(y, m, emp, d, { assignment: cell.assignment || null, duty: newDuty });
+    changed++;
+    affectedCells.push({ emp, day: d });
+
+    if (newDuty === "D") {
+      const next = nextCalendarDay(y, m, d);
+      const ex = getCell(next.y, next.m, emp, next.d);
+      if (!ex.assignment) {
+        setCell(next.y, next.m, emp, next.d, { assignment: "F", duty: ex.duty || null });
+        autoFreeDay = true;
+        if (next.y === y && next.m === m) {
+          affectedCells.push({ emp, day: next.d });
+        }
+      }
+    }
+  });
+  if (planMode) recordPlanHistory();
+
+  const name = dutyCode === "HG" ? "Hintergrunddienst" : "Bereitschaftsdienst";
+  let msg = "";
+  if (multi) {
+    msg = `${dutyCode} ${remove ? "entfernt" : "gesetzt"} · ${changed} ${changed === 1 ? "Tag" : "Tage"}${suffixForSkips(skipped)}`;
+  } else if (remove) {
+    msg = `${dutyCode === "HG" ? "HG" : "BD"} entfernt`;
+  } else {
+    msg = autoFreeDay ? `${name} gesetzt · F automatisch für Folgetag` : `${name} gesetzt`;
+  }
+  showToast(msg);
+  announceToScreenReader(msg);
+
+  if (IS_MOBILE) {
+    render();
+    focusCellAfterRender(emp, day);
+  } else {
+    affectedCells.forEach(c => updateGridCell(c.emp, c.day));
+    updateAllConflicts();
+    updateGridStatsAndHeader();
+  }
 }
 
 export function moveDutyBadge(srcEmp, srcDay, dstEmp, dstDay) {
@@ -2466,47 +2684,75 @@ export function moveDutyBadge(srcEmp, srcDay, dstEmp, dstDay) {
   setCell(y, m, dstEmp, dstDay, { assignment: dstCell.assignment || null, duty: dutyCode });
   if (planMode) recordPlanHistory();
 
-  showToast(`${dutyCode}-Dienst verschoben: ${srcEmp} (${srcDay}.) → ${dstEmp} (${dstDay}.)`);
-  render();
-  focusCellAfterRender(dstEmp, dstDay);
+  const msg = `${dutyCode}-Dienst verschoben: ${srcEmp} (${srcDay}.) → ${dstEmp} (${dstDay}.)`;
+  showToast(msg);
+  announceToScreenReader(msg);
+
+  if (IS_MOBILE) {
+    render();
+    focusCellAfterRender(dstEmp, dstDay);
+  } else {
+    updateGridCell(srcEmp, srcDay);
+    updateGridCell(dstEmp, dstDay);
+    updateAllConflicts();
+    updateGridStatsAndHeader();
+  }
 }
 
 export function quickClearCell(emp, day) {
   const { year: y, month: m } = state;
+  const days = quickTargetDays(emp, day);
+  const multi = days.length > 1;
+
   if (planMode) recordPlanHistory();
-  if (!planMode) {
-    recordHistory({
-      type: "quick-clear",
-      description: `${emp}, Tag ${day}: gelöscht`
-    });
+  days.forEach(d => clearCell(y, m, emp, d));
+  if (planMode) recordPlanHistory();
+
+  const msg = multi ? `${days.length} Tage geleert` : "Eintrag gelöscht";
+  showToast(msg);
+  announceToScreenReader(msg);
+
+  if (IS_MOBILE) {
+    render();
+    focusCellAfterRender(emp, day);
+  } else {
+    days.forEach(d => updateGridCell(emp, d));
+    updateAllConflicts();
+    updateGridStatsAndHeader();
   }
-  clearCell(y, m, emp, day);
-  if (planMode) recordPlanHistory();
-  showToast("Eintrag gelöscht");
-  render();
-  focusCellAfterRender(emp, day);
 }
 
 export function quickSetStatus(emp, day, statusCode) {
   const { year: y, month: m } = state;
-  const cell = getCell(y, m, emp, day);
-  const isActive = cell.assignment === statusCode;
-  const newAssignment = isActive ? null : statusCode;
+  const days = quickTargetDays(emp, day);
+  const multi = days.length > 1;
+
+  const remove = getCell(y, m, emp, day).assignment === statusCode;
 
   if (planMode) recordPlanHistory();
-  if (!planMode) {
-    recordHistory({
-      type: "quick-status",
-      description: `${emp}, Tag ${day}: ${isActive ? "Status entfernt" : (st?.label || statusCode) + " gesetzt"}`
-    });
-  }
-  setCell(y, m, emp, day, { assignment: newAssignment, duty: cell.duty || null });
+  days.forEach(d => {
+    const cell = getCell(y, m, emp, d);
+    setCell(y, m, emp, d, { assignment: remove ? null : statusCode, duty: cell.duty || null });
+  });
   if (planMode) recordPlanHistory();
 
   const st = STATUSES.find(s => s.code === statusCode);
-  showToast(isActive ? `${st?.label || statusCode} entfernt` : `${st?.label || statusCode} gesetzt`);
-  render();
-  focusCellAfterRender(emp, day);
+  const label = st?.label || statusCode;
+  const verb = remove ? "entfernt" : "gesetzt";
+  const msg = multi
+    ? `${label} ${verb} · ${days.length} ${days.length === 1 ? "Tag" : "Tage"}`
+    : `${label} ${verb}`;
+  showToast(msg);
+  announceToScreenReader(msg);
+
+  if (IS_MOBILE) {
+    render();
+    focusCellAfterRender(emp, day);
+  } else {
+    days.forEach(d => updateGridCell(emp, d));
+    updateAllConflicts();
+    updateGridStatsAndHeader();
+  }
 }
 
 export function wireEvents() {
@@ -2527,8 +2773,8 @@ export function wireEvents() {
     if (empSub) {
       empSub.textContent = `Kalenderjahr ${y}`;
     }
-    renderEmployeeDashboard();
     showOverlay("modal-emps");
+    showTeamScreen();
     setTimeout(() => document.getElementById("emp-search")?.focus(), 80);
   });
   
@@ -2590,11 +2836,21 @@ export function wireEvents() {
     renderEmployeeDashboard(); 
   });
   
-  document.querySelectorAll(".empdash-view-btn").forEach((btn) => {
+  document.querySelectorAll("#modal-emps .emp-screen-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      state.employeeDashboard.detailView = btn.dataset.view;
-      renderEmployeeDashboard();
+      if (btn.dataset.screen === "person") showPersonScreen();
+      else showTeamScreen();
     });
+  });
+
+  document.getElementById("emp-person-back")?.addEventListener("click", showTeamScreen);
+
+  document.querySelectorAll("#modal-emps .pm-tab").forEach((btn) => {
+    btn.addEventListener("click", () => applyPersonTab(btn.dataset.ptab));
+  });
+
+  document.getElementById("emp-person-select")?.addEventListener("change", (e) => {
+    openProfileModal(e.target.value);
   });
 
   const empSortEl = document.getElementById("emp-sort");
@@ -2633,10 +2889,8 @@ export function wireEvents() {
     closePeriodFlyout();
   });
   
-  document.getElementById("btn-yearplan")?.addEventListener("click", () => {
-    openYearPlan(state.year);
-    renderYearPlanContent();
-    showOverlay("modal-yearplan");
+  document.getElementById("btn-analytics")?.addEventListener("click", () => {
+    openAnalyticsHub();
   });
 
   const commentTa = document.getElementById("ed-comment-ta");
@@ -2652,7 +2906,18 @@ export function wireEvents() {
   });
 
   document.getElementById("btn-print")?.addEventListener("click", () => {
-    printPlan();
+    openPrintPreview();
+  });
+
+  document.getElementById("btn-undo")?.addEventListener("click", normalUndo);
+  document.getElementById("btn-redo")?.addEventListener("click", normalRedo);
+  document.getElementById("mbtn-undo")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(normalUndo, 180);
+  });
+  document.getElementById("mbtn-redo")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(normalRedo, 180);
   });
 
   document.getElementById("btn-import")?.addEventListener("click", () => {
@@ -2671,14 +2936,17 @@ export function wireEvents() {
     }
   });
   
-  document.getElementById("btn-plan")?.addEventListener("click", () => { 
+  initHeaderOverflowMenu();
+  initColorblindToggle();
+
+  document.getElementById("btn-plan")?.addEventListener("click", () => {
     if (planMode) {
-      closePlanMode(); 
+      closePlanMode();
     } else {
-      enterPlanMode(); 
+      enterPlanMode();
     }
   });
-  
+
   document.getElementById("mnav-dept")?.addEventListener("click", () => {
     document.getElementById("btn-employees")?.click();
   });
@@ -2708,9 +2976,26 @@ export function wireEvents() {
     setTimeout(() => doExport(), 180); 
   });
   
-  document.getElementById("mbtn-import")?.addEventListener("click", () => { 
-    hideOverlay("modal-mobile-menu"); 
-    setTimeout(() => openImportModal(), 180); 
+  document.getElementById("mbtn-import")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(() => openImportModal(), 180);
+  });
+
+  document.getElementById("mbtn-cmdk")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(() => openCommandPalette(), 180);
+  });
+
+  document.getElementById("mbtn-theme")?.addEventListener("click", (e) => toggleTheme(e));
+
+  document.getElementById("mbtn-analytics")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(() => openAnalyticsHub(), 180);
+  });
+
+  document.getElementById("mbtn-print")?.addEventListener("click", () => {
+    hideOverlay("modal-mobile-menu");
+    setTimeout(() => openPrintPreview(), 180);
   });
 
   document.getElementById("mbtn-force-sync")?.addEventListener("click", () => {
@@ -2764,7 +3049,7 @@ export function wireEvents() {
 
     if (planMode) recordPlanHistory();
 
-    state.multiEdit = { emp: null, days: [] };
+    state.multiEdit = { emp: null, days: [], anchor: null };
     hideOverlay("modal-editor");
     render();
   });
@@ -2799,15 +3084,19 @@ export function wireEvents() {
   
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      let handled = false;
       [
-        "modal-editor", "modal-emps", "modal-import", "modal-profile", "modal-dept",
+        "modal-editor", "modal-emps", "modal-import", "modal-dept",
         "modal-yearplan", "modal-autoplan", "modal-ap-report", "modal-mobile-menu",
-        "modal-mobile-day", "modal-score-info", "modal-command-palette"
+        "modal-mobile-day", "modal-score-info", "modal-command-palette", "modal-print-preview"
       ].forEach((id) => {
         const el = document.getElementById(id);
-        if (el && !el.hasAttribute("hidden")) hideOverlay(id);
+        if (el && !el.hasAttribute("hidden")) { hideOverlay(id); handled = true; }
       });
-      if (isPeriodFlyoutOpen()) closePeriodFlyout();
+      if (isPeriodFlyoutOpen()) { closePeriodFlyout(); handled = true; }
+      if (!handled && state.multiEdit?.days?.length) {
+        clearMultiSelection();
+      }
       return;
     }
     
@@ -2878,26 +3167,45 @@ export function wireEvents() {
       }
     }
     
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "s") { 
-      e.preventDefault(); 
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "s") {
+      e.preventDefault();
       if (planMode) {
-        savePlanDraft(); 
+        savePlanDraft();
       } else {
-        doExport(); 
+        doExport();
       }
-      return; 
+      return;
     }
-    
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "p" || e.key === "P")) {
+      e.preventDefault();
+      openPrintPreview();
+      return;
+    }
+
+    const typingTarget = ["INPUT", "TEXTAREA", "SELECT"].includes((e.target?.tagName || "").toUpperCase()) || e.target?.isContentEditable;
+
     if (planMode) {
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") { 
-        e.preventDefault(); 
-        undoPlan(); 
-        return; 
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        undoPlan();
+        return;
       }
-      if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === "z") || e.key === "y")) { 
-        e.preventDefault(); 
-        redoPlan(); 
-        return; 
+      if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === "z") || e.key === "y")) {
+        e.preventDefault();
+        redoPlan();
+        return;
+      }
+    } else if (!typingTarget) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        normalUndo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && (e.key === "z" || e.key === "Z")) || e.key === "y" || e.key === "Y")) {
+        e.preventDefault();
+        normalRedo();
+        return;
       }
     }
     
@@ -2912,11 +3220,9 @@ export function wireEvents() {
   const gridWrapper = document.getElementById("grid-wrapper");
   if (gridWrapper) {
     gridWrapper.addEventListener("wheel", (e) => { 
-      // Handle wheel events explicitly for predictable UX
       const isEmployeeCol = e.target.closest('.td-name, .th-corner');
       const scrollingVertical = e.shiftKey || isEmployeeCol;
       
-      // Use the maximum delta to support high-res mice and trackpads
       const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       
       if (delta !== 0) {
@@ -2940,9 +3246,9 @@ export function wireEvents() {
 }
 
 export async function init() {
+  injectBrandIcon();
   initTheme();
   initDensity();
-  initNewFeatures();
   await loadFromStorage();
   ensurePostBDFreiDays();
   
@@ -2962,29 +3268,20 @@ export async function init() {
   populatePeriodMonthSelect();
   syncPeriodControls();
   wireEvents();
-  setupYearPlanModal();
+  initNormalHistory();
+  initCellTooltips();
+  initTooltips();
 
-  // Jahresplan-Navigation: Klick auf Gitterzelle springt zum Monat
+  // Navigation aus dem Auswertungs-Hub (z. B. Klick auf eine Jahresgitter-Zelle):
+  // Hub schließen und in den gewählten Monat springen.
   window.addEventListener('radplan-navigate', (e) => {
     const { year, month } = e.detail || {};
     if (Number.isFinite(year) && Number.isFinite(month)) {
-      hideOverlay('modal-yearplan');
+      hideOverlay('modal-analytics');
       setTimeout(() => switchPeriod(year, month), 180);
     }
   });
 
-  // Jahresplan aufräumen wenn Modal geschlossen wird
-  const ypModal = document.getElementById('modal-yearplan');
-  if (ypModal) {
-    new MutationObserver(mutations => {
-      mutations.forEach(mut => {
-        if (mut.attributeName === 'hidden' && ypModal.hasAttribute('hidden')) {
-          cleanupYearPlan();
-        }
-      });
-    }).observe(ypModal, { attributes: true });
-  }
-  
   refreshResponsiveLayout({ forceRender: true });
 
   const apModal = document.getElementById("modal-autoplan");
@@ -3070,3 +3367,13 @@ window.openScoreInfoModal = () => {
     openScoreInfoModal(localAutoPlanResult);
   }
 };
+
+export function announceToScreenReader(message) {
+  const announcer = document.getElementById("aria-announcer");
+  if (announcer) {
+    announcer.textContent = "";
+    setTimeout(() => {
+      announcer.textContent = message;
+    }, 50);
+  }
+}

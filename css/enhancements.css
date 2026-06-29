@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   RadPlan — Enhancements
+   Styles für:
+     · Detail-Tooltip beim Überfahren einer Zelle (celltooltip.js)
+     · Druckvorschau-Modal inkl. PDF-Export (printpreview.js)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Detail-Tooltip ───────────────────────────────────────────────────────── */
+.cell-detail-tip {
+  /* --glass-light-bg ist in BEIDEN Themes eine helle Fläche. Die theme-abhängigen
+     Ink-Tokens (--text-*, --ink-strong) werden im Dark-Mode weiß und wären auf
+     dieser hellen Fläche unsichtbar. Daher hier auf feste dunkle Ink-Werte
+     pinnen (Konvention --ink-on-glass-light). */
+  --ink-rgb: 15,23,42;
+  --ink-strong: #0F172A;
+  --text-1: #0F172A;
+  --text-2: rgba(15,23,42,.78);
+  --text-3: rgba(15,23,42,.62);
+  --text-faint: rgba(15,23,42,.55);
+  position: fixed;
+  z-index: 1450;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 10px 12px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-1);
+  background: var(--glass-light-bg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border: 1px solid var(--glass-light-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(-3px) scale(.97);
+  transition: opacity .14s ease, transform .14s cubic-bezier(.34, 1.4, .64, 1);
+  pointer-events: none;
+}
+
+.cell-detail-tip.cdt-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.cdt-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cdt-name { font-weight: 700; font-size: 12.5px; color: var(--text-1); }
+
+.cdt-pos {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-xs);
+  color: var(--accent);
+}
+
+.cdt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.cdt-lbl { color: var(--text-3); }
+.cdt-val { font-weight: 600; color: var(--text-1); }
+
+.cdt-sect { margin-top: 7px; }
+
+.cdt-sect-hd {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-3);
+  margin-bottom: 3px;
+}
+
+.cdt-muted { color: var(--text-faint); font-style: italic; }
+
+.cdt-hist { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.cdt-hist-item {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.cdt-duty-D { background: #EF4444; }
+.cdt-duty-HG { background: #0EA5E9; }
+
+.cdt-conflict {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.cdt-conflict .cdt-sect-hd { color: #DC2626; }
+.cdt-conflict-txt { color: #B91C1C; font-size: 10.5px; }
+
+.cdt-note { color: var(--text-2); font-style: italic; }
+
+.cdt-change-txt {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: var(--text-2);
+}
+
+.cdt-interpretation {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+}
+.cdt-interpretation .cdt-sect-hd { color: #6366F1; }
+.cdt-interpretation-txt { color: var(--text-2); font-size: 10.5px; line-height: 1.4; }
+
+
+/* ── Druckvorschau-Modal ──────────────────────────────────────────────────── */
+.modal-print-preview {
+  width: min(1180px, 96vw);
+  max-width: 96vw;
+}
+
+.pp-body {
+  /* Die Druckvorschau ist als helles Blatt/Panel gestaltet (--gray-50/-100,
+     Weiß) — unabhängig vom App-Theme. Theme-abhängige Ink-Tokens würden im
+     Dark-Mode weiß und damit unsichtbar. Daher feste dunkle Ink-Werte pinnen,
+     sodass Optionstexte (Ausrichtung, Hoch-/Querformat, Seitenhinweis) lesbar
+     bleiben. Die Kopfzeile des Dialogs liegt außerhalb von .pp-body. */
+  --ink-rgb: 15,23,42;
+  --ink-strong: #0F172A;
+  --text-1: #0F172A;
+  --text-2: rgba(15,23,42,.80);
+  --text-3: rgba(15,23,42,.64);
+  --text-faint: rgba(15,23,42,.55);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 12px;
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pp-opt-group { display: flex; align-items: center; gap: 6px; }
+
+.pp-opt-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-3);
+  margin-right: 4px;
+}
+
+.pp-opt {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.pp-opt:hover { border-color: var(--accent); color: var(--text-1); }
+
+.pp-opt.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pp-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.pp-check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+.pp-pagenote {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.pp-preview-wrap {
+  background: var(--gray-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  overflow: auto;
+  max-height: 58vh;
+}
+
+.pp-preview { display: flex; justify-content: center; }
+
+.pp-page {
+  background: #fff;
+  color: #0F172A;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  padding: 14px 16px;
+  box-sizing: border-box;
+}
+
+.pp-page.pp-landscape { width: 1000px; max-width: 100%; }
+.pp-page.pp-portrait { width: 707px; max-width: 100%; }
+
+.pp-page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #0F172A;
+}
+
+.pp-page-header strong { font-size: 15px; color: #0F172A; }
+.pp-page-header span { font-family: var(--font-mono, monospace); font-size: 12px; font-weight: 600; color: #334155; }
+
+.pp-table {
+  width: 100% !important;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 8px;
+  color: #0F172A;
+}
+
+.pp-table th,
+.pp-table td {
+  border: 0.5px solid #94A3B8 !important;
+  padding: 1px 1px !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #0F172A !important;
+  background: #fff;
+  line-height: 1.15;
+  height: auto !important;
+  min-width: 0 !important;
+  text-align: center;
+}
+
+.pp-table .td-name,
+.pp-table .th-corner { width: 92px !important; max-width: 92px !important; text-align: left; }
+.pp-table thead th,
+.pp-table .td-name,
+.pp-table tfoot td { background: #EEF2F7 !important; font-weight: 700; }
+.pp-table .emp-label { color: #0F172A !important; font-size: 8px; }
+.pp-table .day-status-stripe,
+.pp-table .cell-comment-dot,
+.pp-table .cell-pin,
+.pp-table .cell-conflict-flag,
+.pp-table .cell-wish,
+.pp-table .emp-sub,
+.pp-table .td-name-meta { display: none !important; }
+.pp-table .cell-duty {
+  font-size: 7px;
+  font-weight: 700;
+  margin-left: 2px;
+  color: #0F172A !important;
+  background: transparent !important;
+}
+
+/* Mobile: Druckvorschau als Vollbild-Sheet */
+@media (max-width: 768px) {
+  .modal-print-preview { width: 100%; }
+  .pp-toolbar { gap: 12px; }
+  .pp-pagenote { margin-left: 0; width: 100%; }
+  .pp-preview-wrap { padding: 10px; max-height: 46vh; }
+  .pp-page.pp-landscape,
+  .pp-page.pp-portrait { width: 900px; }
+}
+
+/* ACCESSIBILITY + PERF: respect reduced-motion.
+   Disables non-essential animations/transitions globally for users who request
+   reduced motion. Does not affect the default look for normal users. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

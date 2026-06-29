@@ -1,0 +1,25 @@
+/* Auswertungs-Hub · Modul „Fairness-Verlauf" (crv-*) */
+.crv-controls { margin-bottom: 12px; }
+.crv-toggle { display: inline-flex; gap: 4px; background: var(--gray-100, rgba(148,163,184,.12)); padding: 3px; border-radius: 999px; }
+.crv-mode { border: none; background: transparent; cursor: pointer; font: 600 11px/1 var(--font-sans); color: var(--text-3); padding: 6px 12px; border-radius: 999px; transition: background .15s, color .15s; }
+.crv-mode:hover { color: var(--text-1); }
+.crv-mode.active { background: var(--surface-raised, #fff); color: var(--text-1); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,.12)); }
+.crv-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.5; margin: 8px 0 0; }
+.crv-chart-card { padding: 14px 16px; }
+.crv-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; }
+.crv-legitem { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-2); }
+.crv-legline { width: 14px; height: 3px; border-radius: 2px; }
+.crv-canvas-wrap { position: relative; height: 320px; }
+.crv-table td[style], .crv-table th { text-align: center; }
+.crv-table td:first-child { text-align: left; font-weight: 600; }
+.crv-nd { color: var(--text-faint); opacity: .5; }
+
+/* --- Portrait-Mobile: Chart-Höhe halten, breite 12-Monats-Tabelle scrollbar --- */
+@media (max-width: 560px) {
+  .crv-canvas-wrap { height: 240px; }
+  .crv-chart-card { padding: 12px 12px; }
+  .crv-legend { gap: 4px 10px; }
+}
+@media (max-width: 380px) {
+  .crv-canvas-wrap { height: 210px; }
+}

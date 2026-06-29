@@ -1,0 +1,23 @@
+[
+  {
+    "id": "8a67e0b1-9e9b-49c3-b3e0-0a96d339ddeb",
+    "role": "Tooltip_Engine_Developer",
+    "status": "COMPLETED",
+    "workspace": "inherit",
+    "context": "js/tooltip.js"
+  },
+  {
+    "id": "efe3da06-52f8-40fd-9adf-9edfcefc3475",
+    "role": "Grid_Tooltip_Developer",
+    "status": "COMPLETED",
+    "workspace": "inherit",
+    "context": "js/celltooltip.js"
+  },
+  {
+    "id": "27a025b5-77f3-4768-8496-bcf8637fef4a",
+    "role": "Analytics_Template_Migrator",
+    "status": "COMPLETED",
+    "workspace": "inherit",
+    "context": "js/analytics/"
+  }
+]

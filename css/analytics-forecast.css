@@ -1,0 +1,114 @@
+/* ===========================================================================
+   analytics-forecast — Modul „Prognose & Planung"
+   Nur .fc-* Klassen; geteilte .ah-* werden wiederverwendet.
+   Light + Dark über bestehende CSS-Variablen.
+   =========================================================================== */
+
+.fc-scope {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-bottom: 12px;
+}
+
+/* Erläuternder Hinweis am Fuß des Moduls. */
+.fc-note {
+  margin-top: 14px;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+/* ---- Legende ----------------------------------------------------------- */
+.fc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.fc-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.fc-swatch { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+.fc-swatch-ist { background: #3B82F6; }
+.fc-swatch-proj {
+  background: rgba(59, 130, 246, .45);
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255, 255, 255, .35) 0 3px, transparent 3px 6px);
+}
+.fc-swatch-target {
+  background: transparent;
+  border-left: 3px solid var(--text-2);
+  border-radius: 0;
+  width: 6px;
+}
+
+/* ---- Dualer Balken (Ist vs. Prognose + Ziel-Marker) -------------------- */
+.fc-bars {
+  position: relative;
+  width: 150px;
+  height: 18px;
+  background: var(--gray-100, rgba(148, 163, 184, .12));
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fc-bar {
+  position: absolute;
+  left: 0;
+  height: 8px;
+  border-radius: 2px;
+  transition: width .25s ease;
+}
+.fc-bar-ist {
+  top: 1px;
+  background: #3B82F6;
+}
+.fc-bar-proj {
+  bottom: 1px;
+  background: rgba(59, 130, 246, .45);
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255, 255, 255, .35) 0 3px, transparent 3px 6px);
+}
+/* Prognose über Jahresziel → Warnfarbe. */
+.fc-bar-proj.fc-bar-over {
+  background: rgba(239, 68, 68, .5);
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255, 255, 255, .35) 0 3px, transparent 3px 6px);
+}
+/* Ziel-Marker (vertikale Linie). */
+.fc-target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-1);
+  opacity: .8;
+}
+.fc-target::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-1);
+}
+
+/* ---- Chart-Container ---------------------------------------------------- */
+.fc-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 320px;
+}
+
+/* --- Portrait-Mobile: Chart-Höhe halten, Dual-Balken schmaler --- */
+@media (max-width: 560px) {
+  .fc-chart-wrap { height: 240px; }
+  .fc-bars { width: 100px; }
+  .fc-legend { gap: 10px; }
+}
+@media (max-width: 380px) {
+  .fc-chart-wrap { height: 210px; }
+  .fc-bars { width: 80px; }
+}

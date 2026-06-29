@@ -1,0 +1,148 @@
+/* ============================================================================
+   FLÄCHIGES FARBSYSTEM (Solid Color Scheme)
+   ----------------------------------------------------------------------------
+   Zentrale, themenbewusste Farbcodierung aller Arbeitsplatz-/Status-Codes.
+   Die JS-Schicht setzt `data-code="XX"` auf die Rasterzelle. Dieses Stylesheet
+   überschreibt die Inline-Stile und regelt die flächige Einfärbung der Zellen:
+
+     • LIGHT-Mode  → Ruhige, vollflächige Pastellflächen mit hochkontrastiger, 
+                     dunkler Schrift (WCAG AA).
+     • DARK-Mode   → Tiefe, satte, vollflächige Hintergrundfarben mit leuchtender,
+                     kontraststarker Schrift (optimiert für das Klinik-Grid).
+     • COLORBLIND  → Opaque, Okabe-Ito-basierte Farben (html[data-cb="1"])
+                     mit Formreiz (Kantenmarkierung).
+
+   ============================================================================ */
+
+/* --- Default & Light-Mode: Vollflächige Pastellfarben -------------------- */
+.td-cell[data-code] {
+  background-color: var(--cell-bg, rgba(var(--ink-rgb), .06)) !important;
+  background-image: none !important;
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+
+.td-cell[data-code] .cell-assign {
+  color: var(--cell-fg, var(--ink-strong)) !important;
+}
+
+/* Arbeitsplätze (Light Mode) */
+.td-cell[data-code="MR"]  { --cell-bg: #DBEAFE; --cell-fg: #1D4ED8; }
+.td-cell[data-code="CT"]  { --cell-bg: #FFEDD5; --cell-fg: #C2410C; }
+.td-cell[data-code="US"]  { --cell-bg: #CCFBF1; --cell-fg: #0F766E; }
+.td-cell[data-code="AN"]  { --cell-bg: #F3E8FF; --cell-fg: #7E22CE; }
+.td-cell[data-code="MA"]  { --cell-bg: #FCE7F3; --cell-fg: #BE185D; }
+.td-cell[data-code="KUS"] { --cell-bg: #DCFCE7; --cell-fg: #15803D; }
+.td-cell[data-code="W"]   { --cell-bg: #FEF9C3; --cell-fg: #854D0E; }
+.td-cell[data-code="T"]   { --cell-bg: #E0E7FF; --cell-fg: #3730A3; }
+
+/* Status / Abwesenheiten (Light Mode) */
+.td-cell[data-code="F"]    { --cell-bg: #F1F5F9; --cell-fg: #475569; }
+.td-cell[data-code="U"]    { --cell-bg: #EDE9FE; --cell-fg: #5B21B6; }
+.td-cell[data-code="ZU"]   { --cell-bg: #DDD6FE; --cell-fg: #4C1D95; }
+.td-cell[data-code="SU"]   { --cell-bg: #C4B5FD; --cell-fg: #2E1065; }
+.td-cell[data-code="FZA"]  { --cell-bg: #E0E7FF; --cell-fg: #3730A3; }
+.td-cell[data-code="K"]    { --cell-bg: #FEE2E2; --cell-fg: #991B1B; }
+.td-cell[data-code="KK"]   { --cell-bg: #FECACA; --cell-fg: #7F1D1D; }
+.td-cell[data-code="§15c"] { --cell-bg: #CFFAFE; --cell-fg: #155E75; }
+.td-cell[data-code="WB"]   { --cell-bg: #FEF3C7; --cell-fg: #78350F; }
+
+
+/* --- Dark-Mode: Satte, dunkle Vollfarben --------------------------------- */
+[data-theme="dark"] .td-cell[data-code="MR"]  { --cell-bg: #1E3A8A; --cell-fg: #EFF6FF; }
+[data-theme="dark"] .td-cell[data-code="CT"]  { --cell-bg: #7C2D12; --cell-fg: #FFF7ED; }
+[data-theme="dark"] .td-cell[data-code="US"]  { --cell-bg: #115E59; --cell-fg: #F0FDFA; }
+[data-theme="dark"] .td-cell[data-code="AN"]  { --cell-bg: #581C87; --cell-fg: #FAF5FF; }
+[data-theme="dark"] .td-cell[data-code="MA"]  { --cell-bg: #831843; --cell-fg: #FDF2F8; }
+[data-theme="dark"] .td-cell[data-code="KUS"] { --cell-bg: #065F46; --cell-fg: #F0FDF4; }
+[data-theme="dark"] .td-cell[data-code="W"]   { --cell-bg: #713F12; --cell-fg: #FEFCE8; }
+[data-theme="dark"] .td-cell[data-code="T"]   { --cell-bg: #312E81; --cell-fg: #EEF2FF; }
+
+[data-theme="dark"] .td-cell[data-code="F"]    { --cell-bg: #1E293B; --cell-fg: #94A3B8; }
+[data-theme="dark"] .td-cell[data-code="U"]    { --cell-bg: #4C1D95; --cell-fg: #F5F3FF; }
+[data-theme="dark"] .td-cell[data-code="ZU"]   { --cell-bg: #5B21B6; --cell-fg: #F5F3FF; }
+[data-theme="dark"] .td-cell[data-code="SU"]   { --cell-bg: #6D28D9; --cell-fg: #F5F3FF; }
+[data-theme="dark"] .td-cell[data-code="FZA"]  { --cell-bg: #1E1B4B; --cell-fg: #EEF2FF; }
+[data-theme="dark"] .td-cell[data-code="K"]    { --cell-bg: #7F1D1D; --cell-fg: #FEE2E2; }
+[data-theme="dark"] .td-cell[data-code="KK"]   { --cell-bg: #991B1B; --cell-fg: #FEE2E2; }
+[data-theme="dark"] .td-cell[data-code="§15c"] { --cell-bg: #155E75; --cell-fg: #ECFEFF; }
+[data-theme="dark"] .td-cell[data-code="WB"]   { --cell-bg: #78350F; --cell-fg: #FEF3C7; }
+
+
+/* --- Farbenblind-Modus (Okabe-Ito, vollflächig) ------------------------- */
+html[data-cb="1"] .td-cell[data-code] {
+  background-color: var(--cb-bg, rgba(var(--ink-rgb), .08)) !important;
+  background-image: none !important;
+  box-shadow: inset 3px 0 0 0 var(--cb-edge, transparent) !important;
+}
+
+html[data-cb="1"] .td-cell[data-code] .cell-assign {
+  color: var(--cb-fg, var(--ink-strong)) !important;
+}
+
+html[data-cb="1"] .td-cell[data-code="MR"]  { --cb-bg: #0072B2; --cb-edge: #004C7A; --cb-fg: #EAF4FB; }
+html[data-cb="1"] .td-cell[data-code="CT"]  { --cb-bg: #D55E00; --cb-edge: #8F3F00; --cb-fg: #FFF1E8; }
+html[data-cb="1"] .td-cell[data-code="US"]  { --cb-bg: #009E73; --cb-edge: #006B4E; --cb-fg: #E8FBF4; }
+html[data-cb="1"] .td-cell[data-code="AN"]  { --cb-bg: #CC79A7; --cb-edge: #8E5274; --cb-fg: #FCEEF5; }
+html[data-cb="1"] .td-cell[data-code="MA"]  { --cb-bg: #E69F00; --cb-edge: #9C6C00; --cb-fg: #2A1C00; }
+html[data-cb="1"] .td-cell[data-code="KUS"] { --cb-bg: #56B4E9; --cb-edge: #2E7CA8; --cb-fg: #06243A; }
+html[data-cb="1"] .td-cell[data-code="W"]   { --cb-bg: #F0E442; --cb-edge: #A8A000; --cb-fg: #2A2800; }
+html[data-cb="1"] .td-cell[data-code="T"]   { --cb-bg: #999999; --cb-edge: #5F5F5F; --cb-fg: #15181D; }
+
+/* Status-Abschnitte im CB-Modus: Themensensible flächige Neutraltöne */
+html[data-cb="1"] .td-cell[data-code="F"],
+html[data-cb="1"] .td-cell[data-code="U"],
+html[data-cb="1"] .td-cell[data-code="ZU"],
+html[data-cb="1"] .td-cell[data-code="SU"],
+html[data-cb="1"] .td-cell[data-code="FZA"],
+html[data-cb="1"] .td-cell[data-code="WB"] {
+  --cb-bg: var(--gray-200);
+  --cb-edge: var(--gray-400);
+  --cb-fg: var(--text-1);
+}
+
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="F"],
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="U"],
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="ZU"],
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="SU"],
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="FZA"],
+[data-theme="dark"] html[data-cb="1"] .td-cell[data-code="WB"] {
+  --cb-bg: var(--gray-100);
+  --cb-edge: var(--gray-300);
+  --cb-fg: var(--text-1);
+}
+
+html[data-cb="1"] .td-cell[data-code="K"],
+html[data-cb="1"] .td-cell[data-code="KK"]  {
+  --cb-bg: #D55E00;
+  --cb-edge: #8F3F00;
+  --cb-fg: #FFF1E8;
+}
+
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="F"] .cell-assign,
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="U"] .cell-assign,
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="ZU"] .cell-assign,
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="SU"] .cell-assign,
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="FZA"] .cell-assign,
+html[data-cb="1"][data-theme="light"] .td-cell[data-code="WB"] .cell-assign {
+  color: var(--text-1) !important;
+}
+
+
+/* --- Wiederverwendbare Chip-/Badge-Utility -------------------------------- */
+.chip-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  letter-spacing: .01em;
+  background: var(--cell-bg, rgba(var(--ink-rgb), .08));
+  color: var(--cell-fg, var(--text-1));
+  border: 1px solid rgba(var(--ink-rgb), .08);
+  white-space: nowrap;
+}

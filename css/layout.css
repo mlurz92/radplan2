@@ -1,7 +1,3 @@
-/* Print-only chrome: kept in the DOM for the print stylesheet but never shown
-   on screen. (print.css is linked with media="print", so its own hide rule can
-   only ever run while printing — this is the rule that actually hides them in
-   the live view; @media print re-enables them with !important.) */
 #print-header,
 #print-footer {
   display: none;
@@ -9,9 +5,11 @@
 
 #app-header {
   height: var(--header-h);
-  background: rgba(var(--navy-800-rgb),.6);
-  backdrop-filter: blur(var(--glass-blur-lg));
-  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  background: var(--surface-raised);
+  /* Capped blur on always-visible header (was --glass-blur-lg/24px) to cut
+     per-frame re-blur cost; glass look preserved. */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -19,8 +17,8 @@
   flex-shrink: 0;
   z-index: 100;
   position: relative;
-  border-bottom: 1px solid var(--glass-border);
-  box-shadow: 0 1px 0 rgba(var(--ink-rgb),.03), 0 4px 24px rgba(0,0,0,.3);
+  border-bottom: 1px solid var(--elev-border-2);
+  box-shadow: var(--elev-shadow-2), var(--elev-hi-strong);
   gap: 8px;
   contain: layout paint;
 }
@@ -52,11 +50,19 @@ body.is-mobile.is-standalone #app-header {
 .brand-icon {
   width: 30px;
   height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
-  object-fit: contain;
   box-shadow: 0 2px 10px rgba(14,165,233,.2);
   transition: transform .3s cubic-bezier(.34,1.2,.64,1), box-shadow .3s;
+}
+
+.brand-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .brand-icon:hover {
@@ -80,25 +86,26 @@ body.is-mobile.is-standalone #app-header {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(var(--ink-rgb),.04);
+  background: var(--elev-1-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--elev-border-1);
   border-radius: var(--radius);
   padding: 4px 6px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,.15);
-  transition: border-color .2s, box-shadow .2s;
+  box-shadow: var(--elev-shadow-1);
+  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
 
 .month-nav:hover {
-  border-color: var(--glass-border-h);
-  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  border-color: var(--elev-border-3);
+  background: var(--elev-1-bg-hover);
+  box-shadow: var(--elev-shadow-2);
 }
 
 .nav-btn {
   background: none;
   border: none;
-  color: rgba(var(--ink-rgb),.35);
+  color: var(--text-2);
   font-size: 18px;
   line-height: 1;
   padding: 4px 10px;
@@ -150,7 +157,7 @@ body.is-mobile.is-standalone #app-header {
 }
 
 .month-label-caret {
-  color: rgba(var(--ink-rgb),.55);
+  color: rgba(var(--ink-rgb),.72);
   font-size: 11px;
 }
 
@@ -160,58 +167,20 @@ body.is-mobile.is-standalone #app-header {
   align-items: center;
 }
 
-#btn-global-undo,
-#btn-global-redo,
-#btn-history,
-#btn-shortcuts,
-#btn-print-preview,
-#btn-settings {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  color: rgba(var(--ink-rgb),.55);
-  padding: 6px 9px;
-  border-radius: var(--radius-sm);
-  transition: all .2s;
-  display: flex;
-  align-items: center;
-}
-
-#btn-global-undo:hover,
-#btn-global-redo:hover,
-#btn-history:hover,
-#btn-shortcuts:hover,
-#btn-print-preview:hover,
-#btn-settings:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border-h);
-  color: var(--ink-strong);
-  transform: translateY(-1px);
-}
-
-#btn-global-undo:active,
-#btn-global-redo:active {
-  transform: scale(.9);
-}
-
-#btn-global-undo:disabled,
-#btn-global-redo:disabled {
-  cursor: not-allowed;
-}
-
 .hbtn-divider {
   width: 1px;
-  height: 24px;
-  background: var(--glass-border);
-  margin: 0 4px;
-  flex-shrink: 0;
+  height: 22px;
+  background: rgba(var(--ink-rgb),.06);
+  margin: 0 2px;
 }
 
 #stats-bar {
   height: var(--statsbar-h);
   background: rgba(var(--navy-800-rgb),.85);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-bottom: 1px solid rgba(var(--ink-rgb),.08);
+  /* Capped blur on always-visible stats bar (was --glass-blur/16px). */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--elev-border-1);
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -220,7 +189,7 @@ body.is-mobile.is-standalone #app-header {
   overflow-y: hidden;
   scrollbar-width: none;
   gap: 0;
-  box-shadow: 0 1px 4px rgba(0,0,0,.03);
+  box-shadow: 0 1px 4px rgba(0,0,0,.03), var(--elev-hi);
   position: relative;
   contain: layout paint;
 }
@@ -268,14 +237,14 @@ body.is-mobile.is-standalone #app-header {
   padding: 0 12px 0 0;
   border-right: 1px solid rgba(var(--ink-rgb),.1);
   margin-right: 4px;
-  color: rgba(var(--ink-rgb),.5);
+  color: var(--text-3);
   gap: 5px;
 }
 
 .stat-label-sm {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(var(--ink-rgb),.4);
+  color: var(--text-faint);
   letter-spacing: .04em;
 }
 
@@ -298,15 +267,16 @@ body.is-mobile.is-standalone #app-header {
 
 #stats-empty {
   font-size: 11px;
-  color: rgba(var(--ink-rgb),.4);
+  color: var(--text-faint);
   font-style: italic;
 }
 
 #plan-bar {
   height: 52px;
   background: rgba(59,10,0,.45);
-  backdrop-filter: blur(var(--glass-blur-lg));
-  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  /* Capped blur on always-visible plan bar (was --glass-blur-lg/24px). */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -358,7 +328,7 @@ body.is-mobile.is-standalone #app-header {
 
 .plan-bar-hint {
   font-size: 11.5px;
-  color: rgba(var(--ink-rgb),.28);
+  color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -383,13 +353,12 @@ main {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 12px 12px 0 12px; /* Remove bottom padding to maximize viewport height utilization */
+  padding: 12px 12px 0 12px;
 }
 
-/* UI Polish: Row highlighting style — subtle accent, similar to today-column but teal-amber */
 .tr-hover {
   background: rgba(14,165,233,.045) !important;
-  box-shadow: inset 4px 0 0 0 rgba(14,165,233,.0); /* transparent, accent via td-name */
+  box-shadow: inset 4px 0 0 0 rgba(14,165,233,.0);
 }
 .tr-hover .td-name {
   background: linear-gradient(90deg, rgba(14,165,233,.18) 0%, rgba(14,165,233,.08) 100%) !important;
@@ -456,8 +425,9 @@ main {
   z-index: 50;
   width: var(--name-w);
   min-width: var(--name-w);
-  background: rgba(var(--navy-700-rgb),.9);
-  backdrop-filter: blur(var(--glass-blur));
+  /* Sticky corner sits over the scrolling grid; backdrop-filter here forces a
+     re-blur every scroll frame. Use a near-opaque solid bg (looks ~identical). */
+  background: rgba(var(--navy-700-rgb),.97);
   border-right: 1px solid rgba(var(--ink-rgb),.06);
   border-bottom: 1px solid rgba(14,165,233,.2);
 }
@@ -471,7 +441,7 @@ main {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb),.25);
+  color: var(--text-2);
 }
 
 .th-day {
@@ -565,8 +535,9 @@ main {
   width: var(--name-w);
   min-width: var(--name-w);
   height: var(--row-h);
-  background: rgba(var(--navy-700-rgb), 0.96);
-  backdrop-filter: blur(8px);
+  /* Sticky name column over scrolling grid: solid bg instead of backdrop-filter
+     (was blur(8px)) to avoid per-scroll-frame re-blur. */
+  background: rgba(var(--navy-700-rgb), 0.98);
   border-right: 1px solid rgba(var(--ink-rgb), 0.08);
   border-bottom: 1px solid rgba(var(--ink-rgb), 0.08);
   padding: 0 10px 0 12px;
@@ -584,9 +555,6 @@ tr:hover .td-name {
   border-right-color: rgba(14,165,233,.25);
 }
 
-/* Role-band structure: a firm divider separates each role group so the grid
-   reads as distinct sections (Leitung · FÄ · AÄ · weitere) instead of one
-   undifferentiated block. The first row of a band carries the heavier rule. */
 .tr-band-start .td-name,
 .tr-band-start .td-cell {
   border-top: 2px solid rgba(var(--ink-rgb), 0.22);
@@ -595,7 +563,7 @@ tr:hover .td-name {
 .tr-band-start:first-child .td-cell {
   border-top: none;
 }
-/* Subtle per-band tint on the sticky name column for at-a-glance grouping. */
+
 tr[data-band="lead"] .td-name { background: rgba(14, 165, 233, 0.10); }
 tr[data-band="fa"]   .td-name { background: rgba(168, 85, 247, 0.08); }
 tr[data-band="aa"]   .td-name { background: rgba(34, 197, 94, 0.07); }
@@ -673,6 +641,9 @@ tr:hover .emp-profile-icon {
   vertical-align: top;
   transition: filter .12s, box-shadow .15s, transform 0.1s;
   outline: none;
+  /* Isolate layout for each repeating cell so reflow in one cell can't cascade.
+     Only `layout` (not `paint`) so the hover scale/glow may still overflow. */
+  contain: layout;
 }
 
 .td-cell:hover {
@@ -710,11 +681,58 @@ tr:hover .emp-profile-icon {
 .td-cell.multi-selected {
   box-shadow: inset 0 0 0 2px rgba(245,158,11,.9), inset 0 0 10px rgba(245,158,11,.2);
   background-image: linear-gradient(180deg, rgba(245,158,11,.08), rgba(245,158,11,.02));
+  position: relative;
+  z-index: 3;
+  animation: cell-select-pop .18s cubic-bezier(.34,1.4,.64,1);
+}
+
+@keyframes cell-select-pop {
+  0%   { box-shadow: inset 0 0 0 0 rgba(245,158,11,.9), inset 0 0 0 rgba(245,158,11,0); }
+  100% { box-shadow: inset 0 0 0 2px rgba(245,158,11,.9), inset 0 0 10px rgba(245,158,11,.2); }
+}
+
+body.is-drag-selecting #plan-tbody .td-cell {
+  cursor: cell;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-cell.multi-selected { animation: none; }
+}
+
+.td-cell.cqp-anchor-cell {
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 12px rgba(var(--accent-rgb),.22);
+  z-index: 4;
 }
 
 .td-cell.is-fri {
   border-right: 1px solid rgba(var(--ink-rgb),.16) !important;
 }
+
+#plan-tbody tr:nth-child(even) .td-name {
+  background-image: linear-gradient(rgba(var(--ink-rgb),.022), rgba(var(--ink-rgb),.022));
+}
+
+.td-cell.col-hl:not(.today),
+.th-day.col-hl:not(.today) {
+  box-shadow: inset 0 0 0 100px rgba(var(--accent-rgb),.05);
+}
+
+#plan-tbody tr.row-hl .td-cell:not(.today) {
+  box-shadow: inset 0 0 0 100px rgba(var(--accent-rgb),.045);
+}
+
+#plan-tbody tr.row-hl .td-cell.col-hl {
+  box-shadow: inset 0 0 0 100px rgba(var(--accent-rgb),.07), inset 0 0 0 1px rgba(var(--accent-rgb),.28);
+  z-index: 4;
+}
+
+.td-name.col-hl,
+#plan-tbody tr.row-hl .td-name {
+  background-image: linear-gradient(rgba(var(--accent-rgb),.10), rgba(var(--accent-rgb),.10));
+  color: var(--ink-strong);
+}
+
+.th-day.col-hl .th-day-inner { color: var(--ink-strong); }
 
 .cell-inner {
   width: 100%;
@@ -723,11 +741,13 @@ tr:hover .emp-profile-icon {
   align-items: center;
   justify-content: center;
   padding: 2px 3px;
+  container-type: size;
+  box-sizing: border-box;
 }
 
 .cell-assign {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: clamp(7.5px, min(26cqw, 32cqh), 13px);
   font-weight: 700;
   text-align: center;
   line-height: 1.2;
@@ -736,7 +756,7 @@ tr:hover .emp-profile-icon {
 }
 
 .cell-assign-rbn {
-  font-size: 9.5px !important;
+  font-size: clamp(7px, min(24cqw, 30cqh), 12px) !important;
   font-weight: 700 !important;
   white-space: nowrap !important;
   word-break: normal !important;
@@ -759,7 +779,7 @@ tr:hover .emp-profile-icon {
 }
 
 .td-cell.auto-f-rest .cell-assign {
-  color: rgba(var(--ink-rgb),.4);
+  color: var(--text-faint);
   font-weight: 500 !important;
   font-style: italic;
   letter-spacing: .03em;
@@ -800,7 +820,6 @@ tr:hover .emp-profile-icon {
   cursor: grabbing;
 }
 
-/* Drop target feedback for native drag & drop of duty badges */
 .td-cell.drag-over {
   box-shadow: inset 0 0 0 2px var(--accent);
   background-color: var(--accent-dim);
@@ -835,7 +854,6 @@ tr:hover .emp-profile-icon {
   color: #0369A1;
 }
 
-/* Inline comment indicator dot — top-right corner of grid cell */
 .cell-comment-dot {
   position: absolute;
   top: 2px;
@@ -850,13 +868,11 @@ tr:hover .emp-profile-icon {
   flex-shrink: 0;
 }
 
-/* Show tooltip on cell hover when comment dot is present */
 .td-cell:hover .cell-comment-dot {
   background: #FBBF24;
   box-shadow: 0 0 0 2px rgba(251,191,36,.35);
 }
 
-/* Pin indicator — marks a cell as fixed/excluded from the Auto-Plan solver */
 .cell-pin {
   position: absolute;
   top: 1px;
@@ -873,8 +889,6 @@ tr:hover .emp-profile-icon {
   outline-offset: -1.5px;
 }
 
-/* Hard-rule conflict warning — flags cells that violate a hard rule (D-D, duty+Urlaub,
-   Mehrfachbesetzung etc.), independent of whether an Auto-Plan run produced them. */
 .td-cell.cell-conflict {
   box-shadow: inset 0 0 0 1.5px var(--red);
   z-index: 4;
@@ -905,9 +919,10 @@ tr:hover .emp-profile-icon {
   position: sticky;
   left: 0;
   z-index: 20;
-  background: rgba(var(--navy-700-rgb),.92);
-  color: rgba(var(--ink-rgb),.6);
-  backdrop-filter: blur(6px);
+  /* Sticky stat label over scrolling grid: solid bg instead of backdrop-filter
+     (was blur(6px)) to avoid per-scroll-frame re-blur. */
+  background: rgba(var(--navy-700-rgb),.97);
+  color: var(--text-2);
   height: var(--foot-h);
   padding: 0 10px;
   border-right: 1px solid rgba(var(--ink-rgb),.08);
@@ -921,7 +936,7 @@ tr:hover .emp-profile-icon {
 
 .tr-stat .td-stat-val {
   background: rgba(var(--navy-700-rgb),.7);
-  color: rgba(var(--ink-rgb),.3);
+  color: var(--text-faint);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
@@ -935,7 +950,7 @@ tr:hover .emp-profile-icon {
 }
 
 .td-stat-val.dim {
-  color: rgba(var(--ink-rgb),.4);
+  color: var(--text-faint);
   opacity: 1;
 }
 
@@ -970,7 +985,7 @@ tr:hover .emp-profile-icon {
 .stat-lbl-text {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(var(--ink-rgb),.5);
+  color: var(--text-3);
 }
 
 .td-empty {
@@ -1121,8 +1136,6 @@ body.is-mobile .plan-bar-center {
   flex-shrink: 0 !important;
 }
 
-
-
 @media (max-width: 1200px) {
   .brand-sub { display: none; }
   #month-label { min-width: 100px; font-size: 13px; }
@@ -1130,8 +1143,6 @@ body.is-mobile .plan-bar-center {
   .plan-bar-month { font-size: 11px; }
 }
 
-/* ── Manual density toggle: lets users shrink the desktop grid on demand
-   (tablets, smaller windows) without waiting for a width breakpoint ── */
 body.grid-density-compact {
   --name-w: 118px;
   --cell-w: 32px;
@@ -1143,15 +1154,10 @@ body.grid-density-compact .emp-profile-icon {
   display: none;
 }
 
-body.grid-density-compact .cell-assign {
-  font-size: 10px;
-}
-
 body.grid-density-compact .d-kw {
   display: none;
 }
 
-/* ── Tablet (601-768px): Grid stays visible, layout tightened ── */
 @media (max-width: 768px) {
   :root {
     --header-h: 48px;
@@ -1166,7 +1172,6 @@ body.grid-density-compact .d-kw {
   .month-nav { margin: 0 auto; }
   #month-label { min-width: 80px; font-size: 12px; }
   .nav-btn { padding: 4px 8px; font-size: 16px; }
-  /* Header actions remain visible on tablet — only hide on phone */
   .hbtn-lbl { display: none; }
   .hbtn { padding: 6px 8px; }
   #stats-bar { padding: 0 8px; }
@@ -1181,7 +1186,6 @@ body.grid-density-compact .d-kw {
   main { padding: 8px 8px 0; }
 }
 
-/* ── Phone (≤600px): Switch to mobile list view ── */
 @media (max-width: 600px) {
   :root {
     --header-h: 44px;
@@ -1215,7 +1219,7 @@ body.grid-density-compact .d-kw {
   .mnav-btn {
     background: none;
     border: none;
-    color: rgba(var(--ink-rgb),.6);
+    color: var(--text-2);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1247,8 +1251,6 @@ body.grid-density-compact .d-kw {
   .month-nav { padding: 3px 4px; }
   #month-label { min-width: 70px; font-size: 11px; }
   .nav-btn { padding: 4px 6px; font-size: 14px; }
-  .cell-assign { font-size: 8px; }
-  .cell-assign-rbn { font-size: 7.5px !important; }
   .td-name { padding: 0 4px 0 6px; }
   .emp-label { font-size: 11px; }
   .emp-pos-tag { font-size: 7.5px; padding: 1px 3px; }
@@ -1261,9 +1263,6 @@ body.grid-density-compact .d-kw {
   .plan-bar-month { display: none; }
 }
 
-/* ═══════════════════════════════════════════════════
-   Day Status Stripe (Feature 3)
-═══════════════════════════════════════════════════ */
 .day-status-stripe {
   position: absolute;
   bottom: 0;
@@ -1275,9 +1274,6 @@ body.grid-density-compact .d-kw {
   border-radius: 1px 1px 0 0;
 }
 
-/* ═══════════════════════════════════════════════════
-   Keyboard Grid Navigation – Hint Bar (Feature 1)
-═══════════════════════════════════════════════════ */
 #grid-kbd-hint {
   display: none;
   align-items: center;
@@ -1287,7 +1283,7 @@ body.grid-density-compact .d-kw {
   background: rgba(14,165,233,.05);
   border-top: 1px solid rgba(14,165,233,.12);
   font-size: 10px;
-  color: rgba(var(--ink-rgb),.4);
+  color: var(--text-faint);
   font-family: var(--font-mono);
   flex-wrap: nowrap;
   overflow: hidden;
@@ -1336,7 +1332,7 @@ body.plan-mode-active #grid-kbd-hint {
   font-size: 8.5px;
   font-weight: 600;
   font-family: var(--font-mono);
-  color: rgba(var(--ink-rgb),.65);
+  color: var(--text-2);
   line-height: 1;
   letter-spacing: 0;
 }

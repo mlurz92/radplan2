@@ -9,8 +9,18 @@
     (function () {
       try {
         var saved = localStorage.getItem('radplan_v3_theme');
-        var theme = saved === 'light' || saved === 'dark' ? saved : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved === 'light' || saved === 'dark' ? saved : (systemDark ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
+        if (localStorage.getItem('radplan_v3_colorblind') === '1') {
+          document.documentElement.setAttribute('data-cb', '1');
+        }
+        window.addEventListener('DOMContentLoaded', function() {
+          var favicon = document.querySelector('link[rel="icon"]');
+          if (favicon) {
+            favicon.setAttribute('href', 'img/icon.svg?v=' + Date.now() + '&theme=' + theme);
+          }
+        });
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
@@ -30,18 +40,28 @@
   <link rel="stylesheet" href="css/core.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/chips.css">
   <link rel="stylesheet" href="css/modals.css">
   <link rel="stylesheet" href="css/views.css">
   <link rel="stylesheet" href="css/contextmenu.css">
   <link rel="stylesheet" href="css/mobile-optimization.css">
-  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/enhancements.css">
+  <link rel="stylesheet" href="css/analytics.css">
+  <link rel="stylesheet" href="css/analytics-coverage.css">
+  <link rel="stylesheet" href="css/analytics-fairness.css">
+  <link rel="stylesheet" href="css/analytics-absence.css">
+  <link rel="stylesheet" href="css/analytics-compliance.css">
+  <link rel="stylesheet" href="css/analytics-forecast.css">
+  <link rel="stylesheet" href="css/analytics-reports.css">
+  <link rel="stylesheet" href="css/analytics-yeargrid.css">
+  <link rel="stylesheet" href="css/analytics-curves.css">
   <link rel="stylesheet" href="css/print.css" media="print">
 </head>
 <body>
 
   <header id="app-header">
     <div class="brand">
-      <img class="brand-icon" src="img/icon_animated.svg" alt="RadPlan" aria-hidden="true" width="30" height="30">
+      <div id="brand-icon-container" class="brand-icon" aria-hidden="true"></div>
       <div class="brand-text">
         <div class="brand-name">RadPlan</div>
       </div>
@@ -54,161 +74,117 @@
     </nav>
 
     <div class="header-actions" role="toolbar" aria-label="Aktionen">
-      <button type="button" id="btn-global-undo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig" disabled style="opacity:0.4;">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="9 14 4 9 9 4"/>
-          <path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
-        </svg>
-      </button>
-      <button type="button" id="btn-global-redo" title="Wiederherstellen (Strg+Y)" aria-label="Wiederherstellen" disabled style="opacity:0.4;">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="15 14 20 9 15 4"/>
-          <path d="M4 20v-7a4 4 0 0 1 4-4h12"/>
-        </svg>
-      </button>
-      <button type="button" id="btn-history" title="Verlauf anzeigen" aria-label="Verlauf">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-      </button>
-      <button type="button" id="btn-shortcuts" title="Tastaturkürzel (Strg+?)" aria-label="Tastaturkürzel anzeigen">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="2" y="4" width="20" height="16" rx="2"/>
-          <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h12"/>
-        </svg>
-      </button>
-      <button type="button" id="btn-print-preview" title="Druckvorschau & PDF" aria-label="Druckvorschau öffnen">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="6 9 6 2 18 2 18 9"/>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-          <rect x="6" y="14" width="12" height="8"/>
-        </svg>
-      </button>
-      <button type="button" id="btn-settings" title="Einstellungen" aria-label="Einstellungen öffnen">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </button>
+      <div class="hbtn-group" role="group" aria-label="Verlauf">
+        <button type="button" class="hbtn-icon" id="btn-undo" disabled title="Rückgängig (Strg+Z)" aria-label="Rückgängig">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+          </svg>
+        </button>
+        <button type="button" class="hbtn-icon" id="btn-redo" disabled title="Wiederherstellen (Strg+Y)" aria-label="Wiederherstellen">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+          </svg>
+        </button>
+      </div>
 
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" id="btn-theme" title="Hell-/Dunkelmodus umschalten" aria-label="Hell-/Dunkelmodus umschalten">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" id="btn-theme-icon-moon">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" id="btn-theme-icon-sun" style="display:none">
-          <circle cx="12" cy="12" r="5"/>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-        </svg>
-      </button>
-
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" id="btn-density" title="Spaltenbreite umschalten (für kleinere Fenster/Tablets)" aria-label="Rasterdichte umschalten">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" id="btn-density-icon-compact">
-          <path d="M4 5v14M9 5v14M14 5v14M19 5v14"/>
-        </svg>
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" id="btn-density-icon-cozy" style="display:none">
-          <rect x="3" y="5" width="18" height="14" rx="1"/>
-          <path d="M3 12h18"/>
-        </svg>
-      </button>
-
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" id="btn-cmdk" title="Befehlspalette öffnen (Strg/Cmd+K)" aria-label="Befehlspalette öffnen">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      </button>
-
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" id="btn-today" title="Zum heutigen Tag" aria-label="Zum heutigen Monat springen">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8"  y1="2" x2="8"  y2="6"/>
-          <line x1="3"  y1="10" x2="21" y2="10"/>
-          <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
-        </svg>
-      </button>
+      <div class="hbtn-group" role="group" aria-label="Werkzeuge">
+        <button type="button" class="hbtn-icon" id="btn-today" title="Zum heutigen Tag" aria-label="Zum heutigen Monat springen">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <button type="button" class="hbtn-icon" id="btn-cmdk" title="Befehlspalette öffnen (Strg/Cmd+K)" aria-label="Befehlspalette öffnen">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button type="button" class="hbtn-icon" id="btn-theme" title="Hell-/Dunkelmodus umschalten" aria-label="Hell-/Dunkelmodus umschalten">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true" id="btn-theme-icon-moon">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>
+          </svg>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true" id="btn-theme-icon-sun" style="display:none">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+        </button>
+      </div>
 
       <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
 
       <button type="button" class="hbtn hbtn-ghost" id="btn-plan" title="Planungsmodus starten — unabhängige Planung ohne Hauptdaten zu verändern">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
         <span class="hbtn-lbl">Planung</span>
       </button>
 
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
       <button type="button" class="hbtn hbtn-ghost" id="btn-employees" title="Mitarbeitende verwalten">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
           <circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
         <span class="hbtn-lbl">Mitarbeitende</span>
       </button>
 
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" class="hbtn hbtn-ghost" id="btn-yearplan" title="Jahresplaner — Fairness-Übersicht, Kurven und Projektion">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-          <path d="M8 14l2 2 4-4"/>
+      <button type="button" class="hbtn hbtn-ghost" id="btn-analytics" title="Auswertungen — Abdeckung, Fairness, Jahresgitter, Kurven, Abwesenheiten, Regelkonformität, Prognose & Berichte">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l3-4 3 3 4-6"/>
         </svg>
-        <span class="hbtn-lbl">Jahresplan</span>
+        <span class="hbtn-lbl">Auswertungen</span>
       </button>
 
       <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
 
-      <button type="button" class="hbtn hbtn-ghost" id="btn-export" title="Alle Daten als JSON exportieren (Strg+S)">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <span class="hbtn-lbl">Export</span>
-      </button>
-
-      <button type="button" class="hbtn hbtn-ghost" id="btn-print" title="Monatsplan drucken / als PDF speichern (Strg+P)">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="6 9 6 2 18 2 18 9"/>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-          <rect x="6" y="14" width="12" height="8"/>
-        </svg>
-        <span class="hbtn-lbl">Drucken</span>
-      </button>
-
-      <button type="button" class="hbtn hbtn-ghost" id="btn-import" title="Daten aus JSON-Datei importieren">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <span class="hbtn-lbl">Import</span>
-      </button>
-
-      <div class="hbtn-divider" role="separator" aria-hidden="true"></div>
-
-      <button type="button" class="hbtn hbtn-ghost" id="btn-force-sync" title="Lokale Daten verwerfen und neuesten Server-Stand laden" style="color: #EF4444;">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="23 4 23 10 17 10"/>
-          <polyline points="1 20 1 14 7 14"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-        <span class="hbtn-lbl">Server-Sync</span>
-      </button>
+      <div class="header-more">
+        <button type="button" class="hbtn-icon" id="btn-more" aria-haspopup="menu" aria-expanded="false" aria-controls="header-menu" title="Weitere Aktionen" aria-label="Weitere Aktionen">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
+
+  <div class="header-menu" id="header-menu" role="menu" aria-label="Weitere Aktionen" hidden>
+    <div class="hmenu-section">Ansicht</div>
+    <button type="button" class="hmenu-item" id="btn-density" role="menuitem" data-icon="density">
+      <span class="hmenu-ico" aria-hidden="true">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" id="btn-density-icon-compact"><path d="M4 5v14M9 5v14M14 5v14M19 5v14"/></svg>
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" id="btn-density-icon-cozy" style="display:none"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h18"/></svg>
+      </span>
+      <span class="hmenu-lbl">Rasterdichte</span>
+    </button>
+    <button type="button" class="hmenu-item" id="btn-colorblind" role="menuitemcheckbox" aria-checked="false" data-icon="eye">
+      <span class="hmenu-ico" aria-hidden="true"></span>
+      <span class="hmenu-lbl">Farbenblind-Modus</span>
+      <span class="hmenu-state" aria-hidden="true"></span>
+    </button>
+
+    <div class="hmenu-sep" role="separator"></div>
+    <div class="hmenu-section">Daten</div>
+    <button type="button" class="hmenu-item" id="btn-export" role="menuitem" data-icon="download">
+      <span class="hmenu-ico" aria-hidden="true"></span>
+      <span class="hmenu-lbl">Exportieren</span>
+      <span class="hmenu-kbd">Strg S</span>
+    </button>
+    <button type="button" class="hmenu-item" id="btn-import" role="menuitem" data-icon="upload">
+      <span class="hmenu-ico" aria-hidden="true"></span>
+      <span class="hmenu-lbl">Importieren</span>
+    </button>
+    <button type="button" class="hmenu-item" id="btn-print" role="menuitem" data-icon="printer">
+      <span class="hmenu-ico" aria-hidden="true"></span>
+      <span class="hmenu-lbl">Drucken / PDF</span>
+      <span class="hmenu-kbd">Strg P</span>
+    </button>
+
+    <div class="hmenu-sep" role="separator"></div>
+    <button type="button" class="hmenu-item hmenu-item-danger" id="btn-force-sync" role="menuitem" data-icon="refresh-cw">
+      <span class="hmenu-ico" aria-hidden="true"></span>
+      <span class="hmenu-lbl">Server-Sync erzwingen</span>
+    </button>
+  </div>
 
   <div class="period-flyout" id="period-flyout" hidden aria-hidden="true">
     <div class="period-flyout-head">
@@ -335,6 +311,7 @@
         <tfoot id="plan-tfoot"></tfoot>
       </table>
     </div>
+    <div id="print-footer" aria-hidden="true"></div>
     <div id="grid-kbd-hint" aria-hidden="true">
       <span class="kbd-hint-group"><span class="kbd-key">←</span><span class="kbd-key">↑</span><span class="kbd-key">→</span><span class="kbd-key">↓</span>&nbsp;Navigieren</span>
       <span class="kbd-hint-sep">·</span>
@@ -376,33 +353,74 @@
         <div class="modal-hd-title" id="mm-title">Aktionen</div>
         <button type="button" class="modal-x" data-close="modal-mobile-menu" aria-label="Menü schließen">✕</button>
       </div>
-      <div class="modal-bd" style="display:flex; flex-direction:column; gap:10px;">
-        <button type="button" class="mbtn mbtn-ghost" id="mbtn-today" style="justify-content:flex-start; padding:14px; font-size: 14px;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" style="margin-right:8px; flex-shrink:0;">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8"  y1="2" x2="8"  y2="6"/>
-            <line x1="3"  y1="10" x2="21" y2="10"/>
-            <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>
-          Zum heutigen Tag
-        </button>
-        <button type="button" class="mbtn mbtn-ghost" id="mbtn-employees" style="justify-content:flex-start; padding:14px; font-size: 14px;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" style="margin-right:8px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Mitarbeitende verwalten
-        </button>
-        <button type="button" class="mbtn mbtn-ghost" id="mbtn-export" style="justify-content:flex-start; padding:14px; font-size: 14px;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" style="margin-right:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Daten exportieren
-        </button>
-        <button type="button" class="mbtn mbtn-ghost" id="mbtn-import" style="justify-content:flex-start; padding:14px; font-size: 14px;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" style="margin-right:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Daten importieren
-        </button>
-        <button type="button" class="mbtn mbtn-ghost" id="mbtn-force-sync" style="justify-content:flex-start; padding:14px; font-size: 14px; color: #EF4444;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" style="margin-right:8px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          Lokal verwerfen & vom Server laden
-        </button>
+      <div class="modal-bd mm-body">
+        <div class="mm-section-label">Ansicht &amp; Navigation</div>
+        <div class="mm-grid">
+          <button type="button" class="mm-tile" id="mbtn-today">
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg></span>
+            <span class="mm-tile-lbl">Heute</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-cmdk">
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+            <span class="mm-tile-lbl">Suche</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-theme">
+            <span class="mm-tile-ic" aria-hidden="true">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" id="mbtn-theme-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" id="mbtn-theme-sun" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </span>
+            <span class="mm-tile-lbl">Design</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-undo" disabled>
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span>
+            <span class="mm-tile-lbl">Rückgängig</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-redo" disabled>
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg></span>
+            <span class="mm-tile-lbl">Wiederholen</span>
+          </button>
+        </div>
+
+        <div class="mm-section-label">Module</div>
+        <div class="mm-grid">
+          <button type="button" class="mm-tile" id="mbtn-employees">
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <span class="mm-tile-lbl">Mitarbeitende</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-analytics">
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg></span>
+            <span class="mm-tile-lbl">Auswertungen</span>
+          </button>
+          <button type="button" class="mm-tile" id="mbtn-print">
+            <span class="mm-tile-ic" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span>
+            <span class="mm-tile-lbl">Drucken / PDF</span>
+          </button>
+        </div>
+
+        <div class="mm-section-label">Darstellung</div>
+        <div class="mm-list">
+          <button type="button" class="mm-row" id="mbtn-colorblind" role="menuitemcheckbox" aria-checked="false">
+            <span class="mm-row-ic" aria-hidden="true"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <span class="mm-row-txt"><span class="mm-row-lbl">Farbenblind-Modus</span><span class="mm-row-sub">Maximal unterscheidbare Arbeitsplatz-Farben</span></span>
+            <span class="hmenu-state" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="mm-section-label">Daten</div>
+        <div class="mm-list">
+          <button type="button" class="mm-row" id="mbtn-export">
+            <span class="mm-row-ic" aria-hidden="true"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+            <span class="mm-row-txt"><span class="mm-row-lbl">Daten exportieren</span><span class="mm-row-sub">Kompletten Datenbestand als JSON sichern</span></span>
+          </button>
+          <button type="button" class="mm-row" id="mbtn-import">
+            <span class="mm-row-ic" aria-hidden="true"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+            <span class="mm-row-txt"><span class="mm-row-lbl">Daten importieren</span><span class="mm-row-sub">JSON-Datei oder Text einspielen</span></span>
+          </button>
+          <button type="button" class="mm-row mm-row-danger" id="mbtn-force-sync">
+            <span class="mm-row-ic" aria-hidden="true"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
+            <span class="mm-row-txt"><span class="mm-row-lbl">Vom Server neu laden</span><span class="mm-row-sub">Lokale Entwürfe verwerfen &amp; Server-Stand holen</span></span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -420,54 +438,6 @@
       <div class="modal-bd mday-body" id="mday-body" style="padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;"></div>
       <div class="modal-ft mday-footer" id="mday-footer">
         <button type="button" class="mbtn mbtn-ghost" data-close="modal-mobile-day">Schließen</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="overlay" id="modal-profile" role="dialog" aria-modal="true" aria-labelledby="pm-name" hidden style="display:none">
-    <div class="modal modal-profile">
-      <div class="modal-hd">
-        <div class="profile-hd-inner">
-          <div class="profile-avatar-lg" id="pm-avatar" aria-hidden="true">MA</div>
-          <div>
-            <div class="modal-hd-title" id="pm-name">Mitarbeiter</div>
-            <div class="modal-hd-sub"   id="pm-sub">Monat · Werktage</div>
-            <div class="pm-meta-row"    id="pm-meta-row" role="list" aria-label="Positionsinformationen"></div>
-          </div>
-        </div>
-        <button type="button" class="modal-x" data-close="modal-profile" aria-label="Profil schließen">✕</button>
-      </div>
-      <div class="pm-body" id="pm-body">
-        <div class="pm-today-status" id="pm-today-status" style="display:none" aria-live="polite"></div>
-        <div class="pm-sect-hd">Monatsübersicht</div>
-        <div class="kpi-grid" id="pm-kpi" role="list" aria-label="Kennzahlen aktueller Monat"></div>
-        <div class="pm-sect-hd" id="pm-wp-hd">Arbeitsplatz-Verteilung</div>
-        <div class="pm-dist-layout" id="pm-dist-layout">
-          <div id="pm-wp-chart" class="dist-chart" aria-label="Arbeitsplatz-Statistik aktueller Monat"></div>
-          <div class="pm-donut-wrap" id="pm-donut-wrap" aria-hidden="true">
-            <canvas id="pm-donut-canvas" width="140" height="140"></canvas>
-          </div>
-        </div>
-        <div class="pm-sect-hd" id="pm-st-hd">Abwesenheiten &amp; Status</div>
-        <div id="pm-st-chart" class="dist-chart" aria-label="Status-Statistik aktueller Monat"></div>
-        <div class="pm-sect-hd" id="pm-duty-hd">Dienste &amp; Hintergrund</div>
-        <div id="pm-duty-detail" class="duty-detail-area" aria-label="Dienstdetails aktueller Monat"></div>
-        <div class="pm-sect-hd">Jahresverlauf &amp; Trend</div>
-        <div class="pm-trend-wrap" aria-label="Monatlicher Aktivitätsverlauf">
-          <canvas id="pm-trend-canvas" height="120" aria-hidden="true"></canvas>
-        </div>
-        <div class="pm-sect-hd">Dienste nach Wochentag</div>
-        <div id="pm-duty-dow" class="pm-dow-grid" aria-label="Dienstverteilung nach Wochentag"></div>
-        <div class="pm-sect-hd">
-          Monatskalender
-          <span class="pm-sect-hint">— Klick auf einen Werktag öffnet den Editor</span>
-        </div>
-        <div id="pm-cal" aria-label="Monatskalender"></div>
-        <div class="pm-sect-hd">Jahresauswertung</div>
-        <div id="pm-yearly" aria-label="Jahresauswertung"></div>
-      </div>
-      <div class="modal-ft">
-        <button type="button" class="mbtn mbtn-ghost" data-close="modal-profile">Schließen</button>
       </div>
     </div>
   </div>
@@ -597,21 +567,26 @@
           <div class="empdash-context" id="emp-context-line" aria-live="polite"></div>
         </div>
         <div class="empdash-hd-actions">
-          <button type="button" class="period-inline-btn" id="emp-open-period" aria-label="Zeitraumsteuerung öffnen">Zeitraum</button>
+          <div class="emp-screen-switch" role="tablist" aria-label="Ansicht umschalten" data-tooltip="Zwischen der Teamübersicht (alle Mitarbeitenden) und der Einzelansicht einer ausgewählten Person umschalten." data-tooltip-pos="bottom">
+            <button type="button" class="emp-screen-btn active" data-screen="team" role="tab" aria-selected="true" data-tooltip="Teamansicht: Kennzahlen, Analytics und Karten aller Mitarbeitenden." data-tooltip-pos="bottom">Team</button>
+            <button type="button" class="emp-screen-btn" data-screen="person" id="emp-screen-person-btn" role="tab" aria-selected="false" disabled data-tooltip="Personenansicht: Detailprofil der aktuell gewählten Person. Per Klick auf eine Karte/Zeile aktivierbar." data-tooltip-pos="bottom">Person</button>
+          </div>
+          <button type="button" class="period-inline-btn" id="emp-open-period" aria-label="Zeitraumsteuerung öffnen" data-tooltip="Betrachtungszeitraum und angezeigten Monat/Jahr für den gesamten Bereich einstellen." data-tooltip-pos="bottom">Zeitraum</button>
           <button type="button" class="modal-x" data-close="modal-emps" aria-label="Mitarbeitenden-Dashboard schließen">✕</button>
         </div>
       </div>
       <div class="modal-bd empdash-body">
+       <div id="emp-screen-team">
         <section class="empdash-section">
           <div class="empdash-summary-grid" id="emp-summary-grid"></div>
         </section>
         <section class="empdash-section empdash-team-section">
           <div class="empdash-team-head">
             <div>
-              <div class="empdash-detail-title">Team-Analytics</div>
+              <div class="empdash-detail-title" data-tooltip="Abteilungs- und Mitarbeitendenstatistiken (Aktivität, Dienste, Abwesenheiten, Abdeckung, Fairness) für den unten gewählten Zeitraum.">Team-Analytics</div>
               <div class="empdash-detail-sub">Abteilungs- und Mitarbeitendenstatistiken für dynamische Zeiträume.</div>
             </div>
-            <div class="empdash-team-controls" id="emp-team-controls" role="toolbar" aria-label="Zeitraum Team-Analytics"></div>
+            <div class="empdash-team-controls" id="emp-team-controls" role="toolbar" aria-label="Zeitraum Team-Analytics" data-tooltip="Betrachtungszeitraum der Team-Analytics wählen: Monat, Quartal, Jahr, rollierende 12 Monate oder frei wählbar (Custom)."></div>
           </div>
           <div class="empdash-team-panel" id="emp-team-panel" aria-live="polite"></div>
         </section>
@@ -620,16 +595,16 @@
             <div class="empdash-toolbar-left">
               <label class="empdash-search-wrap" for="emp-search">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="search" id="emp-search" class="text-input empdash-search" placeholder="Mitarbeitende filtern…" autocomplete="off">
+                <input type="search" id="emp-search" class="text-input empdash-search" placeholder="Mitarbeitende filtern…" autocomplete="off" data-tooltip="Volltextsuche über Kürzel, vollständigen Namen, Position und Bereich. Filtert die Mitarbeitendenkarten live.">
               </label>
-              <div class="empdash-filter-pills" id="emp-role-filters" role="toolbar" aria-label="Rollenfilter"></div>
-              <label class="empdash-activeonly" for="emp-active-only">
+              <div class="empdash-filter-pills" id="emp-role-filters" role="toolbar" aria-label="Rollenfilter" data-tooltip="Nach Rolle filtern: Alle, Chefärzte, Oberärzte, Fachärzte, Assistenz oder Personen ohne Stammdaten. Die Zahl zeigt die jeweilige Anzahl."></div>
+              <label class="empdash-activeonly" for="emp-active-only" data-tooltip="Nur Mitarbeitende anzeigen, die im Jahr mindestens einen Monat mit Plandaten haben. Inaktive werden ausgeblendet.">
                 <input type="checkbox" id="emp-active-only">
                 <span>Nur Aktive</span>
               </label>
             </div>
             <div class="empdash-toolbar-right">
-              <label class="empdash-sort-wrap" for="emp-sort">
+              <label class="empdash-sort-wrap" for="emp-sort" data-tooltip="Reihenfolge der Mitarbeitendenkarten festlegen: Name (A–Z), Position (Leitung zuerst), Dienste, Urlaub, Krank oder aktive Monate – jeweils absteigend.">
                 <span class="empdash-sort-lbl">Sortieren</span>
                 <select id="emp-sort" class="empdash-sort" aria-label="Mitarbeitende sortieren">
                   <option value="name">Name (A–Z)</option>
@@ -640,30 +615,102 @@
                   <option value="active">Aktive Monate (absteigend)</option>
                 </select>
               </label>
-              <button type="button" class="empdash-export-btn" id="emp-export-csv" title="Sichtbare Auswahl als CSV exportieren">
+              <button type="button" class="empdash-export-btn" id="emp-export-csv" title="Sichtbare Auswahl als CSV exportieren" data-tooltip="Die aktuell sichtbare (gefilterte und sortierte) Auswahl als CSV-Datei exportieren – Excel-/de-tauglich, mit Kürzel, Name, Position, Bereich, Diensten und Abwesenheiten.">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span>CSV</span>
               </button>
-              <div class="empdash-count" id="emp-visible-count" aria-live="polite"></div>
+              <div class="empdash-count" id="emp-visible-count" aria-live="polite" data-tooltip="Anzahl der nach Filter/Suche sichtbaren Mitarbeitenden gegenüber der Gesamtzahl im Jahr."></div>
             </div>
           </div>
           <div class="empdash-card-grid" id="emp-year-grid" role="list" aria-label="Jahresübersicht aller Mitarbeitenden"></div>
         </section>
-        <section class="empdash-section empdash-detail-section">
-          <div class="empdash-detail-head">
-            <div>
-              <div class="empdash-detail-title">Detailansicht Kalenderjahr</div>
-              <div class="empdash-detail-sub" id="emp-detail-sub">Bitte eine Person auswählen.</div>
-            </div>
-            <div class="empdash-view-switch" role="tablist" aria-label="Detailansicht umschalten">
-              <button type="button" class="empdash-view-btn active" id="emp-view-months" data-view="months" role="tab" aria-selected="true">Monatsverlauf</button>
-              <button type="button" class="empdash-view-btn" id="emp-view-calendar" data-view="calendar" role="tab" aria-selected="false">Jahreskalender</button>
-              <button type="button" class="empdash-view-btn" id="emp-view-admin" data-view="admin" role="tab" aria-selected="false">Verwaltung</button>
-              <button type="button" class="empdash-view-btn" id="emp-view-analyse" data-view="analyse" role="tab" aria-selected="false">Analyse</button>
+       </div>
+
+       <div id="emp-screen-person" hidden>
+        <div class="pm-person-head">
+          <button type="button" class="pm-back-btn" id="emp-person-back" aria-label="Zurück zur Teamübersicht">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            Team
+          </button>
+          <div class="profile-avatar-lg" id="pm-avatar" aria-hidden="true">MA</div>
+          <div class="pm-person-head-copy">
+            <div class="modal-hd-title" id="pm-name">Mitarbeiter</div>
+            <div class="modal-hd-sub" id="pm-sub">Monat · Werktage</div>
+            <div class="pm-meta-row" id="pm-meta-row" role="list" aria-label="Positionsinformationen"></div>
+          </div>
+          <label class="pm-person-select-wrap" for="emp-person-select" data-tooltip="Schnell zu einer anderen Person wechseln, ohne zur Teamübersicht zurückzukehren.">
+            <span class="pm-person-select-lbl">Person</span>
+            <select id="emp-person-select" class="empdash-sort" aria-label="Person wechseln"></select>
+          </label>
+        </div>
+        <div class="pm-today-status" id="pm-today-status" style="display:none" aria-live="polite"></div>
+
+        <div class="pm-tabbar" role="tablist" aria-label="Profilbereiche">
+          <button type="button" class="pm-tab active" data-ptab="overview" role="tab" aria-selected="true" data-tooltip="Kennzahlen, Arbeitsplatz-Verteilung und Abwesenheiten für den aktuell gewählten Monat." data-tooltip-pos="bottom">Übersicht</button>
+          <button type="button" class="pm-tab" data-ptab="duties" role="tab" aria-selected="false" data-tooltip="Dienst-Fairness im Jahr, Dienst-/Hintergrunddetails, Feiertagsdienste und Verteilung nach Wochentag." data-tooltip-pos="bottom">Dienste &amp; Feiertage</button>
+          <button type="button" class="pm-tab" data-ptab="calendar" role="tab" aria-selected="false" data-tooltip="Monats- bzw. Jahreskalender dieser Person; Klick auf einen Werktag öffnet den Editor." data-tooltip-pos="bottom">Kalender</button>
+          <button type="button" class="pm-tab" data-ptab="year" role="tab" aria-selected="false" data-tooltip="Jahresverlauf, Trend und vollständige Jahresauswertung der Aktivität dieser Person." data-tooltip-pos="bottom">Jahresauswertung</button>
+          <button type="button" class="pm-tab" data-ptab="admin" role="tab" aria-selected="false" data-tooltip="Verwaltung: Person zum aktuellen Monat hinzufügen/entfernen und Monatsliste bearbeiten." data-tooltip-pos="bottom">Verwaltung</button>
+        </div>
+
+        <div class="pm-tabpanel" data-ptab-panel="overview" role="tabpanel">
+          <div class="pm-sect-hd" data-tooltip="Kennzahlen dieser Person für den aktuell gewählten Kalendermonat.">Monatsübersicht</div>
+          <div class="kpi-grid" id="pm-kpi" role="list" aria-label="Kennzahlen aktueller Monat"></div>
+          <div class="pm-sect-hd" id="pm-wp-hd" data-tooltip="Verteilung der zugewiesenen Arbeitsplätze/Einsatzorte im Monat (Tage je Code).">Arbeitsplatz-Verteilung</div>
+          <div class="pm-dist-layout" id="pm-dist-layout">
+            <div id="pm-wp-chart" class="dist-chart" aria-label="Arbeitsplatz-Statistik aktueller Monat"></div>
+            <div class="pm-donut-wrap" id="pm-donut-wrap" aria-hidden="true">
+              <canvas id="pm-donut-canvas" width="140" height="140"></canvas>
             </div>
           </div>
-          <div class="empdash-detail-panel" id="emp-detail-panel" role="tabpanel" aria-live="polite"></div>
-        </section>
+          <div class="pm-sect-hd" id="pm-st-hd" data-tooltip="Abwesenheits- und Statustage im Monat: Urlaub, Krank, FZA, Weiterbildung, Frei usw. (Tage je Code).">Abwesenheiten &amp; Status</div>
+          <div id="pm-st-chart" class="dist-chart" aria-label="Status-Statistik aktueller Monat"></div>
+        </div>
+
+        <div class="pm-tabpanel" data-ptab-panel="duties" role="tabpanel" hidden>
+          <div class="pm-sect-hd" data-tooltip="Vergleich der Dienstlast dieser Person mit dem FTE-gewichteten Soll und dem Team: zeigt, ob über, unter oder im fairen Bereich.">
+            Dienst-Fairness im Jahr
+            <span class="pm-sect-hint">— Belastung &amp; Verteilungsgerechtigkeit gegenüber dem Team</span>
+          </div>
+          <div id="pm-fairness" class="pm-fairness-area" aria-label="Dienst-Fairness im Jahr"></div>
+          <div class="pm-sect-hd" id="pm-duty-hd" data-tooltip="Konkrete Bereitschaftsdienste (D) und Hintergrunddienste (HG) dieser Person im aktuellen Monat.">Dienste &amp; Hintergrund</div>
+          <div id="pm-duty-detail" class="duty-detail-area" aria-label="Dienstdetails aktueller Monat"></div>
+          <div class="pm-sect-hd" id="pm-holiday-hd" data-tooltip="Dienste und Einsätze dieser Person an gesetzlichen Feiertagen (Sachsen) im gesamten Jahr – besonders belastende Einsätze.">
+            Feiertagsdienste
+            <span class="pm-sect-hint">— Dienste &amp; Einsätze an gesetzlichen Feiertagen im Jahr</span>
+          </div>
+          <div id="pm-holiday-duty" class="pm-holiday-area" aria-label="Feiertagsdienste im Jahr"></div>
+          <div class="pm-sect-hd" data-tooltip="Verteilung der Dienste dieser Person auf die Wochentage (Mo–So) im Jahr – zeigt Häufungen z. B. an Wochenenden.">Dienste nach Wochentag</div>
+          <div id="pm-duty-dow" class="pm-dow-grid" aria-label="Dienstverteilung nach Wochentag"></div>
+        </div>
+
+        <div class="pm-tabpanel" data-ptab-panel="calendar" role="tabpanel" hidden>
+          <div class="pm-sect-hd pm-cal-sect-hd">
+            <span id="pm-cal-title" data-tooltip="Kalender dieser Person mit Arbeitsplatz-, Dienst- und Statuseinträgen je Tag. Klick auf einen Werktag öffnet den Editor.">Monatskalender</span>
+            <span class="pm-sect-hint">— Klick auf einen Werktag öffnet den Editor</span>
+            <div class="pm-cal-toggle" role="tablist" aria-label="Kalenderansicht umschalten" data-tooltip="Zwischen Monats- und Jahresansicht des Kalenders umschalten.">
+              <button type="button" class="pm-cal-tab" data-cal-view="month" role="tab">Monat</button>
+              <button type="button" class="pm-cal-tab" data-cal-view="year" role="tab">Jahr</button>
+            </div>
+          </div>
+          <div id="pm-cal" aria-label="Monatskalender"></div>
+          <div id="pm-cal-year" aria-label="Jahreskalender" hidden></div>
+        </div>
+
+        <div class="pm-tabpanel" data-ptab-panel="year" role="tabpanel" hidden>
+          <div class="pm-sect-hd" data-tooltip="Verlauf der monatlichen Aktivität und Dienste dieser Person über das Jahr mit Trendkurve.">Jahresverlauf &amp; Trend</div>
+          <div class="pm-trend-wrap" aria-label="Monatlicher Aktivitätsverlauf">
+            <canvas id="pm-trend-canvas" height="120" aria-hidden="true"></canvas>
+          </div>
+          <div class="pm-sect-hd" data-tooltip="Aufsummierte Jahreswerte dieser Person: aktive Tage, Dienste, Abwesenheiten und Abdeckung je Monat.">Jahresauswertung</div>
+          <div id="pm-yearly" aria-label="Jahresauswertung"></div>
+        </div>
+
+        <div class="pm-tabpanel" data-ptab-panel="admin" role="tabpanel" hidden>
+          <div class="empdash-detail-sub" id="emp-detail-sub" style="margin-bottom:10px"></div>
+          <div class="empdash-detail-panel" id="emp-detail-panel" aria-live="polite"></div>
+        </div>
+       </div>
       </div>
       <div class="modal-ft">
         <button type="button" class="mbtn mbtn-ghost" data-close="modal-emps">Schließen</button>
@@ -804,97 +851,36 @@
   </div>
 
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-  <div id="history-indicator" aria-live="polite">
-    <span class="hist-icon">↶</span>
-    <span id="history-text">Rückgängig</span>
-  </div>
-  <div id="selection-toolbar" role="toolbar" aria-label="Mehrfachauswahl">
-    <span id="selection-count">0 ausgewählt</span>
-    <button type="button" class="mbtn mbtn-ghost" id="sel-clear">Aufheben</button>
-    <button type="button" class="mbtn mbtn-ghost" id="sel-edit">Bearbeiten</button>
-    <button type="button" class="mbtn mbtn-danger" id="sel-delete">Löschen</button>
-  </div>
 
-  <!-- ══ Jahresplaner Modal ═══════════════════════════════════════════════════ -->
-  <div class="overlay" id="modal-yearplan" role="dialog" aria-modal="true" aria-labelledby="yp-title" hidden style="display:none">
-    <div class="modal modal-yearplan">
-
-      <div class="modal-hd yp-modal-hd">
-        <div class="yp-hd-left">
-          <div class="modal-hd-title" id="yp-title">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:7px" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <path d="M8 14l2 2 4-4"/>
-            </svg>
-            Jahresplaner
+  <div class="overlay" id="modal-analytics" role="dialog" aria-modal="true" aria-labelledby="ah-title" hidden style="display:none">
+    <div class="modal modal-analytics ah-modal" role="document">
+      <header class="modal-hd ah-hd">
+        <div class="ah-hd-left">
+          <div class="modal-hd-title" id="ah-title">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:7px" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>
+            Auswertungen
           </div>
-          <div class="modal-hd-sub">Gitter · Fairness · Soll/Ist · Abwesenheiten · Projektion</div>
+          <div class="modal-hd-sub">Abdeckung · Fairness · Abwesenheiten · Regelkonformität · Prognose · Berichte</div>
         </div>
-
-        <nav class="yp-year-nav" aria-label="Jahresnavigation">
-          <button type="button" class="yp-year-btn" id="yp-prev-year" aria-label="Vorheriges Jahr">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <span class="yp-year-label" id="yp-year-label" aria-live="polite">2026</span>
-          <button type="button" class="yp-year-btn" id="yp-next-year" aria-label="Nächstes Jahr">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </nav>
-
-        <button type="button" class="modal-x" data-close="modal-yearplan" aria-label="Jahresplaner schließen">✕</button>
-      </div>
-
-      <div class="yp-tabs" role="tablist" aria-label="Jahresplaner-Ansichten">
-        <button type="button" class="yp-tab active" data-tab="grid" role="tab" aria-selected="true">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-          </svg>
-          Jahres-Gitter
+        <div class="ah-range-bar" id="ah-range-bar" role="toolbar" aria-label="Zeitraum"></div>
+        <button type="button" class="modal-close ah-close" id="ah-close" aria-label="Auswertungen schließen">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <button type="button" class="yp-tab" data-tab="fairness" role="tab" aria-selected="false">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          Fairness-Analyse
-        </button>
-        <button type="button" class="yp-tab" data-tab="sollist" role="tab" aria-selected="false">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-          </svg>
-          Dienst Soll/Ist
-        </button>
-        <button type="button" class="yp-tab" data-tab="absence" role="tab" aria-selected="false">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          Abwesenheiten
-        </button>
-        <button type="button" class="yp-tab" data-tab="projection" role="tab" aria-selected="false">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-          Jahresprojektion
-        </button>
-      </div>
-
-      <div class="yp-body" id="yp-body" role="tabpanel" aria-live="polite"></div>
-
-      <div class="modal-ft">
-        <button type="button" class="mbtn mbtn-ghost" data-close="modal-yearplan">Schließen</button>
+      </header>
+      <div class="ah-body">
+        <nav class="ah-nav" id="ah-nav" role="tablist" aria-label="Auswertungsbereiche"></nav>
+        <div class="ah-content" id="ah-content" role="tabpanel" tabindex="0"></div>
       </div>
     </div>
   </div>
+
+
+  <div id="aria-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

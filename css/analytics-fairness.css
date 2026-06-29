@@ -1,0 +1,75 @@
+/* ===========================================================================
+   RadPlan · Auswertungs-Hub – Modul „Fairness & Verteilung"
+   Nur modul-eigene .fair-* Klassen. Gemeinsame Bausteine (.ah-*) werden
+   wiederverwendet. Hell- & Dunkelmodus über bestehende CSS-Variablen.
+   =========================================================================== */
+
+/* Jahres-Bezug-Hinweis unter dem Titel. */
+.fair-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  margin: -4px 0 12px;
+}
+
+/* Legende über der Rangliste. */
+.fair-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: -2px 0 10px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.fair-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.fair-legend-swatch { width: 12px; height: 8px; border-radius: 3px; display: inline-block; }
+.fair-legend-under { background: #2563EB; }
+.fair-legend-over { background: #DC2626; }
+
+/* Tabellen-Feinschliff (Spaltenbreite für den Balken). */
+.fair-table td:nth-child(9) { min-width: 110px; }
+
+/* Zentrierter Abweichungsbalken pro Zeile. */
+.fair-dev-bar {
+  position: relative;
+  height: 8px;
+  width: 100px;
+  background: var(--gray-200);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fair-dev-zero {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--text-faint);
+  opacity: .5;
+  transform: translateX(-0.5px);
+}
+.fair-dev-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+.fair-dev-under { background: #2563EB; border-radius: 999px 0 0 999px; }
+.fair-dev-over { background: #DC2626; border-radius: 0 999px 999px 0; }
+
+/* Chart-Karte: feste Höhe, damit Chart.js korrekt skaliert. */
+.fair-chart-card { position: relative; }
+.fair-chart-card canvas { max-height: 260px; }
+
+/* --- Portrait-Mobile --- */
+@media (max-width: 560px) {
+  /* Breite Tabelle bleibt in ihrem Wrap scrollbar; Balkenspalte schmaler. */
+  .fair-table td:nth-child(9) { min-width: 70px; }
+  .fair-dev-bar { width: 60px; }
+  .fair-chart-card canvas { max-height: 220px; }
+  .fair-legend { gap: 10px; }
+}
+@media (max-width: 380px) {
+  .fair-chart-card canvas { max-height: 190px; }
+}

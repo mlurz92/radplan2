@@ -207,24 +207,21 @@
     text-align: right;
   }
 
+  /* RBN-Zeile optional vom Druck ausnehmen (Druckvorschau-Option). */
+  body.print-no-rbn #plan-table .tr-rbn {
+    display: none !important;
+  }
+
   @page {
     size: A4 landscape;
     margin: 8mm;
   }
+
+  /* Hochformat-Variante (über Druckvorschau wählbar). */
+  body.print-portrait #print-header-meta::after {
+    content: "";
+  }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   PRINT PREVIEW STYLES (Screen)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.pp-page {
-  --print-preview-scale: 1;
-}
-
-.pp-page.portrait {
-  --print-preview-scale: 0.7;
-}
-
-.pp-page.landscape {
-  --print-preview-scale: 0.65;
-}
+/* Seitenformat wird zur Laufzeit über #print-page-style (printpreview.js)
+   gesetzt, damit Quer-/Hochformat aus der Druckvorschau steuerbar ist. */

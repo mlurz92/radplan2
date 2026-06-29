@@ -44,6 +44,10 @@ export const RBN_OPTIONS = [
 export const RBN_THALER_LAST_MONTH = { year: 2026, month: 2 };
 
 export const EMPLOYEE_DEPARTURES = {
+  // month ist 0-basiert und markiert den ERSTEN Monat OHNE die Person.
+  // Fr. Thaler hat die Abteilung zum 1.4.2026 verlassen → ab April (m=3) inaktiv.
+  "Fr. Thaler": { year: 2026, month: 3, reason: "ausgeschieden" },
+  // Hr. Torki hat die Abteilung zum 1.7.2026 verlassen → ab Juli (m=6) inaktiv.
   "Hr. Torki": { year: 2026, month: 6, reason: "gekündigt" },
 };
 
@@ -121,6 +125,10 @@ export const DOW_LONG = [
 export const STORAGE_KEY = "radplan_v3";
 export const ABSENCE_CODES = ["U", "ZU", "SU", "FZA", "K", "KK", "§15c", "WB"];
 export const VACATION_CODES = ["U", "ZU", "SU", "§15c"];
+// "Urlaubsähnliche" Codes: echter Urlaub plus Freizeitausgleich (FZA) und
+// Weiterbildung (WB). Wird für die Sperre "kein Dienst am Tag vor Urlaub"
+// herangezogen, damit auch urlaubsähnliche Folgetage einen Dienst blockieren.
+export const VACATION_LIKE_CODES = [...VACATION_CODES, "FZA", "WB"];
 
 export const WISH_TYPES = [
   {
@@ -287,22 +295,258 @@ export const EMP_META = {
     phone: "4011",
     tags: ["Radiologie (WB)"],
   },
+  "Dr. Placzek": {
+    fullName: "Dr. Placzek",
+    position: "OA",
+    posLabel: "Oberarzt",
+    type: "FA für Radiologie",
+    area: "CT",
+    deputy: "",
+    since: 2022,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie", "CT"],
+  },
+  "Hr. Krzykowski": {
+    fullName: "Hr. Krzykowski",
+    position: "FA",
+    posLabel: "Facharzt",
+    type: "FA für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2022,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie"],
+  },
+  "Fr. Stöckel": {
+    fullName: "Fr. Stöckel",
+    position: "FÄ",
+    posLabel: "Fachärztin",
+    type: "FÄ für Radiologie · Kinderradiologie",
+    area: "Kinderradiologie",
+    deputy: "",
+    since: 2022,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie", "Kinderradiologie"],
+  },
+  "Hr. Zill": {
+    fullName: "Hr. Zill",
+    position: "FA",
+    posLabel: "Facharzt",
+    type: "FA für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2022,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie"],
+  },
+  "Fr. Apitz": {
+    fullName: "Fr. Apitz",
+    position: "AÄ",
+    posLabel: "Assistenzärztin",
+    type: "AÄ für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
+  "Dr. Fröhlich": {
+    fullName: "Dr. Fröhlich",
+    position: "AÄ",
+    posLabel: "Assistenzärztin",
+    type: "AÄ für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
+  "Dr. Gazis": {
+    fullName: "Dr. Gazis",
+    position: "LOA",
+    posLabel: "Leitender Oberarzt",
+    type: "FA für Radiologie · Neuroradiologie",
+    area: "Neuroradiologie",
+    deputy: "",
+    since: 2020,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie", "Neuroradiologie"],
+  },
+  "Hr. Faragallah": {
+    fullName: "Hr. Faragallah",
+    position: "AA",
+    posLabel: "Assistenzarzt",
+    type: "AA für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
+  "Dr. Meisel": {
+    fullName: "Dr. Meisel",
+    position: "AA",
+    posLabel: "Assistenzarzt",
+    type: "AA für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
+  "Dr. Melzer": {
+    fullName: "Dr. Melzer",
+    position: "AA",
+    posLabel: "Assistenzarzt",
+    type: "AA für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
+  "Fr. Koumasi": {
+    fullName: "Fr. Koumasi",
+    position: "AÄ",
+    posLabel: "Assistenzärztin",
+    type: "AÄ für Radiologie",
+    area: "",
+    deputy: "",
+    since: 2024,
+    fte: 100,
+    phone: "",
+    tags: ["Radiologie (WB)"],
+  },
 };
 
+// Optionale Rollen-Overrides für Personen, die (noch) keinen EMP_META-Eintrag
+// haben. Konfigurierbar als { "Name": "FA" | "AA" }. Leer per Default; ohne
+// Eintrag gilt der dokumentierte Fallback (siehe isAssistenzarzt: AA).
+export const EMP_ROLE_OVERRIDES = {};
+
+const FA_POSITIONS = ["CA", "LOA", "OA", "OÄ", "FA", "FÄ"];
+const AA_POSITIONS = ["AA", "AÄ"];
+
 export function isFacharzt(empName) {
+  const override = EMP_ROLE_OVERRIDES[empName];
+  if (override) return FA_POSITIONS.includes(override) || override === "FA";
   const m = EMP_META[empName];
   if (m) {
-    return ["CA", "LOA", "OA", "OÄ", "FA", "FÄ"].includes(m.position);
+    return FA_POSITIONS.includes(m.position);
   }
   return false;
 }
 
 export function isAssistenzarzt(empName) {
+  const override = EMP_ROLE_OVERRIDES[empName];
+  if (override) return AA_POSITIONS.includes(override) || override === "AA";
   const m = EMP_META[empName];
   if (m) {
-    return ["AA", "AÄ"].includes(m.position);
+    return AA_POSITIONS.includes(m.position);
   }
   return true;
+}
+
+// Liefert true, wenn für die Person weder EMP_META noch ein Rollen-Override
+// existiert. Solche Personen werden vom Planer als AA behandelt (Fallback) und
+// sollten in den Stammdaten ergänzt werden.
+export function hasKnownRole(empName) {
+  return !!(EMP_ROLE_OVERRIDES[empName] || EMP_META[empName]);
+}
+
+/**
+ * Zentrale, datengetriebene Konfiguration aller personen- und paarbezogenen
+ * Sonderregeln. Ersetzt die früher über den Algorithmus verstreuten
+ * namentlichen Sonderfälle (Empfehlung §9 der Algorithmus-Kriterien).
+ */
+export const SPECIAL_RULES = {
+  // Komplett dienstbefreite Personen (BD-Ziel 0).
+  dutyExempt: ["Prof. Schäfer"],
+  // Reduzierte Standard-BD-Ziele (sonst Default 4).
+  reducedBdTarget: { "Dr. Polednia": 3, "Dr. Becker": 3, "Hr. Sebastian": 3 },
+  // Wochentage (0=So…6=Sa), an denen die Person keinen D leisten darf.
+  noBdWeekdays: { "Dr. Polednia": [0, 2, 4] },
+  // Wochentage, an denen die Person keinen HG übernehmen darf, WENN der
+  // BD-Halter desselben Tages ein AA ist (harte Sperre).
+  noHgFromAaWeekdays: { "Dr. Polednia": [0, 2, 4] },
+  // Reihenfolge der Personen, die einen unvermeidbaren Überhang-Dienst
+  // (Dienst über dem eigenen Monatsziel hinaus) bevorzugt absorbieren, WENN
+  // alle BD bereits gleichmäßig und fair am Ziel verteilt sind und keine
+  // Wünsche etwas anderes erzwingen. Dr. Lurz erhält damit als Erster einen
+  // fünften Dienst, bevor jemand anderes über das Ziel hinaus belastet wird.
+  surplusBdPreference: ["Dr. Lurz"],
+  // Personen, die Samstags-D nur als Ultima Ratio (im gelockerten Modus)
+  // bekommen und nach einem Samstags-D zwingend einen FZA-Tag erhalten.
+  saturdayUltimaRatio: ["Dr. Becker"],
+  saturdayFzaCompensation: ["Dr. Becker"],
+  // Gegenseitiges Vertretungspaar (CT-Leitung): nie gleichzeitig abwesend/F
+  // an Werktagen.
+  ctLeadershipPairs: [["Dr. Becker", "Dr. Martin"]],
+  // HG-Konfliktpaare: Person darf an den genannten Wochentagen keinen HG
+  // übernehmen, wenn einer der conflictBd-Personen den BD desselben Tages hat.
+  hgConflictRules: [
+    {
+      person: "Fr. Dalitz",
+      weekdays: [0, 1],
+      conflictBd: ["Hr. Torki", "Hr. Sebastian"],
+    },
+  ],
+};
+
+export function getReducedBdTarget(empName) {
+  return SPECIAL_RULES.reducedBdTarget[empName];
+}
+
+export function isNoBdWeekday(empName, wd) {
+  return (SPECIAL_RULES.noBdWeekdays[empName] || []).includes(wd);
+}
+
+export function isNoHgFromAaWeekday(empName, wd) {
+  return (SPECIAL_RULES.noHgFromAaWeekdays[empName] || []).includes(wd);
+}
+
+export function isSaturdayUltimaRatio(empName) {
+  return SPECIAL_RULES.saturdayUltimaRatio.includes(empName);
+}
+
+// Liefert den 0-basierten Rang einer Person in der Überhang-Präferenzliste
+// (0 = erste Wahl für einen unvermeidbaren Dienst über dem Monatsziel), oder
+// -1, wenn die Person nicht bevorzugt überhang-belastet werden soll.
+export function getSurplusBdPreferenceRank(empName) {
+  return (SPECIAL_RULES.surplusBdPreference || []).indexOf(empName);
+}
+
+export function needsSaturdayFza(empName) {
+  return SPECIAL_RULES.saturdayFzaCompensation.includes(empName);
+}
+
+export function getCtLeadershipPartner(empName) {
+  for (const pair of SPECIAL_RULES.ctLeadershipPairs) {
+    if (pair[0] === empName) return pair[1];
+    if (pair[1] === empName) return pair[0];
+  }
+  return null;
+}
+
+// Liefert für eine HG-Vergabe (Person/Wochentag) die Liste der BD-Halter-Namen,
+// die diesen HG verbieten würden, oder null wenn keine Regel greift.
+export function getHgConflictBd(empName, wd) {
+  for (const rule of SPECIAL_RULES.hgConflictRules) {
+    if (rule.person === empName && rule.weekdays.includes(wd)) {
+      return rule.conflictBd;
+    }
+  }
+  return null;
 }
 
 export function getEmpMeta(name) {

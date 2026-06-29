@@ -61,33 +61,73 @@ import { contextMenu } from './contextmenu.js';
 import { hideOverlay, showToast, openProfileModal } from './render-modals.js';
 import { renderDeptContent } from './render-dept.js';
 import { renderEmployeeDashboard } from './render-employee-dashboard.js';
-import { showCellTooltip, hideTooltip } from './core/tooltips.js';
-import { toggleCellSelection, isCellSelected, clearSelection } from './core/selection.js';
 
 const dragSelectionState = {
   active: false,
   emp: null,
+  mode: "add", // "add" | "remove"
   justDragged: false,
   touched: new Set(),
+  startEmp: null,
+  startDay: null,
+  dismissOnClick: false,
 };
 
 function resetDragSelectionState() {
   dragSelectionState.active = false;
   dragSelectionState.emp = null;
+  dragSelectionState.mode = "add";
   dragSelectionState.touched = new Set();
+  dragSelectionState.startEmp = null;
+  dragSelectionState.startDay = null;
+  dragSelectionState.dismissOnClick = false;
   document.body.classList.remove("is-drag-selecting");
 }
 
+/** Setzt den Auswahlzustand eines Tages; gibt true zurück, wenn sich etwas änderte. */
+function setDaySelected(emp, day, selected) {
+  if (!emp || !Number.isFinite(day) || emp === RBN_ROW_KEY) return false;
+  const me = state.multiEdit;
+  if (me.emp !== emp) {
+    me.emp = emp;
+    me.days = [];
+    me.anchor = null;
+  }
+  const idx = me.days.indexOf(day);
+  if (selected && idx < 0) {
+    me.days.push(day);
+    me.days.sort((a, b) => a - b);
+    me.anchor = day;
+    return true;
+  }
+  if (!selected && idx >= 0) {
+    me.days.splice(idx, 1);
+    if (me.anchor === day) me.anchor = me.days[me.days.length - 1] ?? null;
+    return true;
+  }
+  return false;
+}
+
 function applyDragSelection(emp, day) {
-  if (!emp || !Number.isFinite(day) || emp === RBN_ROW_KEY) return;
-  if (state.multiEdit.emp !== emp) {
-    state.multiEdit.emp = emp;
-    state.multiEdit.days = [];
-  }
-  if (!state.multiEdit.days.includes(day)) {
-    state.multiEdit.days.push(day);
-    state.multiEdit.days.sort((a, b) => a - b);
-  }
+  setDaySelected(emp, day, dragSelectionState.mode === "add");
+}
+
+/**
+ * Synchronisiert nur die `.multi-selected`-Klassen der vorhandenen Zellen,
+ * ohne das gesamte Raster neu zu zeichnen. Das hält Ziehgesten flüssig.
+ */
+function syncSelectionClasses() {
+  const tbody = document.getElementById("plan-tbody");
+  if (!tbody) return;
+  const me = state.multiEdit;
+  const emp = me?.emp || null;
+  const days = Array.isArray(me?.days) ? me.days : [];
+  // Markierung erst ab zwei Zellen sichtbar machen (Einzelzelle → Fokusring genügt).
+  const show = days.length > 1;
+  tbody.querySelectorAll(".td-cell").forEach((cell) => {
+    const sel = show && cell.dataset.emp === emp && days.includes(parseInt(cell.dataset.day, 10));
+    cell.classList.toggle("multi-selected", sel);
+  });
 }
 
 export function getViewportWidth() {
@@ -248,12 +288,12 @@ export function refreshOpenContextPanels() {
   
   const empModal = document.getElementById("modal-emps");
   if (empModal && !empModal.hasAttribute("hidden")) {
-    renderEmployeeDashboard();
-  }
-  
-  const profileModal = document.getElementById("modal-profile");
-  if (profileModal && !profileModal.hasAttribute("hidden") && state.profileEmp) {
-    openProfileModal(state.profileEmp);
+    // Person-Screen offen → Personendetails neu rendern, sonst Teamübersicht.
+    if (state.empScreen === "person" && state.profileEmp) {
+      openProfileModal(state.profileEmp);
+    } else {
+      renderEmployeeDashboard();
+    }
   }
 }
 
@@ -349,122 +389,255 @@ function handleGridKeydown(e) {
 
 // --- Desktop: floating quick-action popover anchored to the focused cell ---
 
-let quickPopover = { el: null, emp: null, day: null, anchorEl: null, outsideHandler: null, keyHandler: null };
+let quickPopover = { el: null, emp: null, day: null, anchorEl: null, outsideHandler: null, keyHandler: null, reposHandler: null };
 
 export function closeCellQuickPopover() {
   if (!quickPopover.el) return;
-  quickPopover.el.remove();
+  const el = quickPopover.el;
+  quickPopover.anchorEl?.classList.remove('cqp-anchor-cell');
   if (quickPopover.outsideHandler) document.removeEventListener('pointerdown', quickPopover.outsideHandler, true);
   if (quickPopover.keyHandler) document.removeEventListener('keydown', quickPopover.keyHandler, true);
-  quickPopover = { el: null, emp: null, day: null, anchorEl: null, outsideHandler: null, keyHandler: null };
+  if (quickPopover.reposHandler) {
+    window.removeEventListener('scroll', quickPopover.reposHandler, true);
+    window.removeEventListener('resize', quickPopover.reposHandler);
+  }
+  quickPopover = { el: null, emp: null, day: null, anchorEl: null, outsideHandler: null, keyHandler: null, reposHandler: null };
   document.body.classList.remove('cell-popover-open');
+  // Sanftes Ausblenden: Klasse entfernen lässt die Basistransition zurücklaufen,
+  // der Knoten wird erst nach Ablauf der Animation entfernt.
+  el.classList.remove('cqp-visible');
+  el.classList.add('cqp-leaving');
+  setTimeout(() => el.remove(), 170);
 }
+
+/**
+ * Vollständiges „Schließen" des Schnellmenüs: blendet das Menü aus, hebt die
+ * (Mehrfach-)Auswahl auf und entfernt deren Hervorhebung. Einheitlicher
+ * Endpunkt für alle Dismiss-Kanäle (×-Button, Esc, Klick außerhalb,
+ * erneuter Klick auf die offene Zelle, Klick außerhalb der Mehrfachauswahl).
+ */
+function dismissQuickMenu({ refocus = false } = {}) {
+  const anchor = quickPopover.anchorEl;
+  state.multiEdit = { emp: null, days: [], anchor: null };
+  closeCellQuickPopover();
+  syncSelectionClasses();
+  if (refocus && anchor && document.contains(anchor)) {
+    anchor.focus({ preventScroll: true });
+  }
+}
+
+// Kuratiertes Status-Schnellset für das Popover (häufigste Codes zuerst).
+const QUICK_STATUS_CODES = ["F", "U", "K", "FZA", "ZU", "WB"];
 
 function buildQuickPopoverHtml(emp, day) {
   const { year: y, month: m } = state;
   const cell = getCell(y, m, emp, day);
   const parts = (cell.assignment || "").split("/").map(x => x.trim()).filter(Boolean);
 
+  const me = state.multiEdit;
+  const selCount = (me?.emp === emp && Array.isArray(me.days) && me.days.includes(day))
+    ? me.days.length : 1;
+  const multi = selCount > 1;
+
+  const headerHtml = `
+    <div class="cqp-header">
+      <span class="cqp-header-emp">${emp}</span>
+      <span class="cqp-header-right">
+        <span class="cqp-header-meta">${multi ? `${selCount} Tage` : `${day}. ${MONTHS[m]}`}</span>
+        <button type="button" class="cqp-close" data-action="close" title="Schließen (Esc)" aria-label="Schnellmenü schließen">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </span>
+    </div>
+  `;
+
   const wpHtml = WORKPLACES.map(wp => {
     const active = parts.includes(wp.code);
     return `<button type="button" class="cqp-wp${active ? " active" : ""}" data-wp="${wp.code}" style="${active ? `background:${wp.bg};color:${wp.fg};border-color:${wp.bg};` : ""}" title="${wp.label}">${wp.code}</button>`;
   }).join("");
 
+  const stHtml = QUICK_STATUS_CODES.map(code => {
+    const st = STATUSES.find(s => s.code === code);
+    if (!st) return "";
+    const active = parts.includes(code);
+    return `<button type="button" class="cqp-status${active ? " active" : ""}" data-status="${code}" style="${active ? `background:${st.bg};color:${st.fg};border-color:${st.bg};` : `--st-bg:${st.bg};--st-fg:${st.fg};`}" title="${st.label}">${code}</button>`;
+  }).join("");
+
   return `
-    <div class="cell-quick-popover-inner">
+    <div class="cell-quick-popover-inner${multi ? " cqp-multi" : ""}">
+      ${headerHtml}
+      <div class="cqp-section-label">Arbeitsplatz</div>
       <div class="cqp-row cqp-wps">${wpHtml}</div>
+      <div class="cqp-section-label">Status</div>
+      <div class="cqp-row cqp-statuses">${stHtml}</div>
       <div class="cqp-row cqp-duties">
         <button type="button" class="cqp-duty badge-D${cell.duty === "D" ? " active" : ""}" data-duty="D" title="Bereitschaftsdienst">D</button>
         <button type="button" class="cqp-duty badge-HG${cell.duty === "HG" ? " active" : ""}" data-duty="HG" title="Hintergrunddienst">HG</button>
-        <button type="button" class="cqp-clear" data-action="clear" title="Zelle löschen">
+        <button type="button" class="cqp-clear" data-action="clear" title="${multi ? "Auswahl leeren" : "Zelle löschen"}">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
       </div>
-      <button type="button" class="cqp-more" data-action="more">Vollständig bearbeiten…</button>
+      <button type="button" class="cqp-more" data-action="more">${multi ? "Auswahl bearbeiten…" : "Vollständig bearbeiten…"}</button>
     </div>
   `;
 }
 
-function positionQuickPopover() {
-  if (!quickPopover.el || !quickPopover.anchorEl) return;
-  const rect = quickPopover.anchorEl.getBoundingClientRect();
-  const el = quickPopover.el;
-  const margin = 8;
-  el.style.visibility = 'hidden';
-  el.style.left = '0px';
-  el.style.top = '0px';
-  const pw = el.offsetWidth;
-  const ph = el.offsetHeight;
-  let left = rect.left + rect.width / 2 - pw / 2;
-  left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
-  let top = rect.bottom + 6;
-  let above = false;
-  if (top + ph > window.innerHeight - margin) {
-    top = rect.top - ph - 6;
-    above = true;
-    if (top < margin) top = margin;
-  }
-  el.classList.toggle('cqp-above', above);
-  el.style.left = `${left}px`;
-  el.style.top = `${top}px`;
-  el.style.visibility = '';
-}
-
-export function showCellQuickPopover(emp, day, anchorEl) {
-  if (IS_MOBILE || !anchorEl || emp === RBN_ROW_KEY) return;
-  closeCellQuickPopover();
-
-  const el = document.createElement('div');
-  el.className = 'cell-quick-popover';
-  el.innerHTML = buildQuickPopoverHtml(emp, day);
-  document.body.appendChild(el);
-
+function wirePopoverButtons(el, emp, day) {
   el.querySelectorAll('.cqp-wp').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      quickToggleWorkplace(emp, day, btn.dataset.wp);
-    });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); quickToggleWorkplace(emp, day, btn.dataset.wp); });
+  });
+  el.querySelectorAll('.cqp-status').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); quickSetStatus(emp, day, btn.dataset.status); });
   });
   el.querySelectorAll('.cqp-duty').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      quickToggleDuty(emp, day, btn.dataset.duty);
-    });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); quickToggleDuty(emp, day, btn.dataset.duty); });
   });
-  el.querySelector('.cqp-clear')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    quickClearCell(emp, day);
-  });
+  el.querySelector('.cqp-clear')?.addEventListener('click', (e) => { e.stopPropagation(); quickClearCell(emp, day); });
+  el.querySelector('.cqp-close')?.addEventListener('click', (e) => { e.stopPropagation(); dismissQuickMenu({ refocus: true }); });
   el.querySelector('.cqp-more')?.addEventListener('click', (e) => {
     e.stopPropagation();
     closeCellQuickPopover();
     openEditor(emp, day);
   });
+}
+
+function renderPopoverInto(el, emp, day) {
+  el.innerHTML = buildQuickPopoverHtml(emp, day);
+  const caret = document.createElement('span');
+  caret.className = 'cqp-caret';
+  caret.setAttribute('aria-hidden', 'true');
+  el.appendChild(caret);
+  wirePopoverButtons(el, emp, day);
+}
+
+function positionQuickPopover() {
+  if (!quickPopover.el || !quickPopover.anchorEl) return;
+  if (!document.contains(quickPopover.anchorEl)) return; // veralteter Anker nach Neuaufbau
+  const rect = quickPopover.anchorEl.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return;
+  const el = quickPopover.el;
+  const margin = 10;
+  const gap = 9;
+  const prevVis = el.style.visibility;
+  el.style.visibility = 'hidden';
+  el.style.left = '0px';
+  el.style.top = '0px';
+  const pw = el.offsetWidth;
+  const ph = el.offsetHeight;
+  const anchorCx = rect.left + rect.width / 2;
+
+  let left = anchorCx - pw / 2;
+  left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+
+  let top = rect.bottom + gap;
+  let above = false;
+  if (top + ph > window.innerHeight - margin) {
+    const aboveTop = rect.top - ph - gap;
+    if (aboveTop >= margin) {
+      top = aboveTop;
+      above = true;
+    } else {
+      // Weder oben noch unten genug Platz → unten einpassen.
+      top = Math.max(margin, Math.min(rect.bottom + gap, window.innerHeight - ph - margin));
+    }
+  }
+
+  el.classList.toggle('cqp-above', above);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+
+  const caret = el.querySelector('.cqp-caret');
+  if (caret) {
+    const caretX = Math.max(15, Math.min(anchorCx - left, pw - 15));
+    caret.style.left = `${caretX}px`;
+  }
+  el.style.visibility = prevVis || '';
+}
+
+export function showCellQuickPopover(emp, day, anchorEl) {
+  if (IS_MOBILE || !anchorEl || emp === RBN_ROW_KEY) return;
+
+  // Gleiche Zelle (z. B. nach einer Schnellaktion oder Tastatur-Follow) → Inhalt
+  // an Ort und Stelle aktualisieren, ohne das Popover neu zu erzeugen. Das
+  // verhindert jegliches Flackern und hält das Menü beim Stapeln ruhig.
+  if (quickPopover.el && quickPopover.emp === emp && quickPopover.day === day) {
+    if (quickPopover.anchorEl !== anchorEl) {
+      quickPopover.anchorEl?.classList.remove('cqp-anchor-cell');
+      quickPopover.anchorEl = anchorEl;
+    }
+    anchorEl.classList.add('cqp-anchor-cell');
+    renderPopoverInto(quickPopover.el, emp, day);
+    positionQuickPopover();
+    return;
+  }
+
+  closeCellQuickPopover();
+
+  const el = document.createElement('div');
+  el.className = 'cell-quick-popover';
+  document.body.appendChild(el);
+  renderPopoverInto(el, emp, day);
 
   quickPopover.el = el;
   quickPopover.emp = emp;
   quickPopover.day = day;
   quickPopover.anchorEl = anchorEl;
+  anchorEl.classList.add('cqp-anchor-cell');
 
   positionQuickPopover();
   requestAnimationFrame(() => el.classList.add('cqp-visible'));
 
   quickPopover.outsideHandler = (e) => {
-    if (quickPopover.el && !quickPopover.el.contains(e.target) && e.target !== quickPopover.anchorEl) {
-      closeCellQuickPopover();
-    }
+    if (!quickPopover.el) return;
+    if (quickPopover.el.contains(e.target)) return;
+    // Klicks auf belegbare Rasterzellen werden von der mouseup-Gestenlogik
+    // verarbeitet (Menü versetzen / Auswahl / Schließen). Jeder Klick wirklich
+    // außerhalb des Rasters schließt vollständig (Light-Dismiss).
+    if (e.target.closest?.('#plan-tbody .td-cell:not(.td-cell-rbn)')) return;
+    dismissQuickMenu();
   };
   quickPopover.keyHandler = (e) => {
     if (e.key === 'Escape') {
-      const anchor = quickPopover.anchorEl;
-      closeCellQuickPopover();
-      anchor?.focus({ preventScroll: true });
+      // Escape schließt das Menü und beendet die Auswahl in einem Schritt.
+      e.stopPropagation();
+      dismissQuickMenu({ refocus: true });
     }
   };
+  quickPopover.reposHandler = () => {
+    const a = quickPopover.anchorEl;
+    if (!a || !document.contains(a)) { closeCellQuickPopover(); return; }
+    const r = a.getBoundingClientRect();
+    const wrap = document.getElementById('grid-wrapper');
+    if (wrap) {
+      const wr = wrap.getBoundingClientRect();
+      // Ankerzelle aus dem sichtbaren Rasterbereich gescrollt → schließen.
+      if (r.right < wr.left + 4 || r.left > wr.right - 4 || r.bottom < wr.top + 4 || r.top > wr.bottom - 4) {
+        closeCellQuickPopover();
+        return;
+      }
+    }
+    positionQuickPopover();
+  };
+
   document.addEventListener('pointerdown', quickPopover.outsideHandler, true);
   document.addEventListener('keydown', quickPopover.keyHandler, true);
+  window.addEventListener('scroll', quickPopover.reposHandler, true);
+  window.addEventListener('resize', quickPopover.reposHandler);
 
   document.body.classList.add('cell-popover-open');
+}
+
+/** Öffnet das Schnellmenü für (emp, day) nach dem nächsten Render-Frame. */
+export function openCellQuickPopoverFor(emp, day) {
+  if (IS_MOBILE || emp === RBN_ROW_KEY || !Number.isFinite(day)) return;
+  requestAnimationFrame(() => {
+    const tbody = document.getElementById("plan-tbody");
+    const cell = tbody?.querySelector(`.td-cell[data-emp="${CSS.escape(emp)}"][data-day="${day}"]`);
+    if (cell) {
+      cell.focus({ preventScroll: true });
+      showCellQuickPopover(emp, day, cell);
+    }
+  });
 }
 
 // --- Mobile: radial quick-action menu with tap-to-open / swipe-to-select ---
@@ -611,6 +784,55 @@ export function initGridKeyboardHandlers() {
       }
     }, 50);
   });
+
+  initGridCrossHighlight(table);
+}
+
+/* ── Kreuz-Hervorhebung (Task 7) ─────────────────────────────────────────────
+   Beim Überfahren einer Rasterzelle werden ihre komplette Spalte (inkl.
+   Tageskopf) und Zeile (inkl. Namensspalte) dezent hervorgehoben. Das
+   erleichtert in der dichten Monatsmatrix das Ablesen „welcher Tag / welche
+   Person". Reine Klassen-Umschaltung mit Spalten-Caching, damit pro
+   Mausbewegung nur bei echtem Zeilen-/Spaltenwechsel neu gezeichnet wird.
+   Auf Touch-Geräten (pointer: coarse) bleibt die Funktion inaktiv. */
+let xhCurrentDay = null;
+let xhCurrentRow = null;
+
+function clearCrossHighlight(table) {
+  if (xhCurrentRow) { xhCurrentRow.classList.remove('row-hl'); xhCurrentRow = null; }
+  if (xhCurrentDay != null) {
+    table.querySelectorAll('.col-hl').forEach((el) => el.classList.remove('col-hl'));
+    xhCurrentDay = null;
+  }
+}
+
+function initGridCrossHighlight(table) {
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
+
+  table.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    const cell = e.target.closest?.('.td-cell, .td-name');
+    if (!cell) { clearCrossHighlight(table); return; }
+
+    const row = cell.parentElement;
+    const day = cell.dataset.day ? cell.dataset.day : null;
+
+    if (row !== xhCurrentRow) {
+      xhCurrentRow?.classList.remove('row-hl');
+      row?.classList.add('row-hl');
+      xhCurrentRow = row;
+    }
+
+    if (day !== xhCurrentDay) {
+      table.querySelectorAll('.col-hl').forEach((el) => el.classList.remove('col-hl'));
+      if (day != null) {
+        table.querySelectorAll(`[data-day="${day}"]`).forEach((el) => el.classList.add('col-hl'));
+      }
+      xhCurrentDay = day;
+    }
+  });
+
+  table.addEventListener('pointerleave', () => clearCrossHighlight(table));
 }
 
 export function render() {
@@ -737,6 +959,7 @@ export function renderThead(y, m, dim, hols, md) {
   const tr = document.createElement("tr");
   const thC = document.createElement("th");
   thC.className = "th-corner";
+  thC.setAttribute("scope", "col");
   thC.innerHTML = '<div class="th-corner-inner">Mitarbeitende</div>';
   tr.appendChild(thC);
   
@@ -757,6 +980,7 @@ export function renderThead(y, m, dim, hols, md) {
     
     const hn = hols[dateKey(y, m, d)] || "";
     const th = document.createElement("th");
+    th.setAttribute("scope", "col");
 
     let cls = "th-day ";
     cls += hol ? "hol" : we ? "we" : "wd";
@@ -764,6 +988,7 @@ export function renderThead(y, m, dim, hols, md) {
     if (fri) cls += " is-fri";
 
     th.className = cls;
+    th.dataset.day = String(d);
 
     const hasEmps = md.employees.length > 0;
     const dCount  = hasEmps ? dayCodeCount(y, m, d, "D")  : 0;
@@ -786,6 +1011,9 @@ export function renderThead(y, m, dim, hols, md) {
       const dLabel  = dCount  > 0 ? `${dCount}× besetzt` : "fehlt";
       const hgLabel = hgCount > 0 ? `${hgCount}× besetzt` : "fehlt";
       th.title = `${d}. ${MONTHS[m]} · D: ${dLabel} · HG: ${hgLabel}`;
+      th.setAttribute("aria-label", `${d}. ${MONTHS[m]} ${DOW_ABBR[wd]} · Bereitschaftsdienst: ${dLabel} · Hintergrunddienst: ${hgLabel}`);
+    } else {
+      th.setAttribute("aria-label", `${d}. ${MONTHS[m]} ${DOW_ABBR[wd]}`);
     }
 
     th.innerHTML = `
@@ -800,6 +1028,208 @@ export function renderThead(y, m, dim, hols, md) {
     tr.appendChild(th);
   }
   thead.appendChild(tr);
+}
+
+function bindCellListeners(tdEl, emp, d) {
+  if (emp === RBN_ROW_KEY) {
+    tdEl.addEventListener("click", (e) => openEditor(RBN_ROW_KEY, d, { ctrlKey: e.ctrlKey || e.metaKey }));
+    tdEl.addEventListener("keydown", (e) => { 
+      if (e.key === "Enter" || e.key === " ") { 
+        e.preventDefault(); 
+        openEditor(RBN_ROW_KEY, d); 
+      } 
+    });
+    return;
+  }
+
+  if (!IS_MOBILE) {
+    const dutyBadge = tdEl.querySelector(".cell-duty");
+    if (dutyBadge) {
+      dutyBadge.draggable = true;
+      dutyBadge.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", JSON.stringify({ emp, day: d }));
+        e.dataTransfer.effectAllowed = "move";
+      });
+    }
+
+    tdEl.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      tdEl.classList.add("drag-over");
+    });
+    tdEl.addEventListener("dragleave", () => {
+      tdEl.classList.remove("drag-over");
+    });
+    tdEl.addEventListener("drop", (e) => {
+      e.preventDefault();
+      tdEl.classList.remove("drag-over");
+      let payload;
+      try {
+        payload = JSON.parse(e.dataTransfer.getData("text/plain"));
+      } catch {
+        return;
+      }
+      if (!payload || !payload.emp || !Number.isFinite(payload.day)) return;
+      moveDutyBadge(payload.emp, payload.day, emp, d);
+    });
+  }
+
+  tdEl.addEventListener("click", (e) => {
+    if (dragSelectionState.justDragged) {
+      dragSelectionState.justDragged = false;
+      return;
+    }
+    if (e.shiftKey) {
+      closeCellQuickPopover();
+      openEditor(emp, d, { shiftKey: true });
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+      closeCellQuickPopover();
+      openEditor(emp, d, { ctrlKey: true });
+    }
+  });
+  tdEl.addEventListener("dblclick", () => {
+    closeCellQuickPopover();
+    openEditor(emp, d);
+  });
+  tdEl.addEventListener("focus", () => {
+    if (!IS_MOBILE && quickPopover.el && !dragSelectionState.active) {
+      showCellQuickPopover(emp, d, tdEl);
+    }
+  });
+  tdEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openEditor(emp, d);
+    }
+  });
+  if (planMode) {
+    tdEl.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      const pinnedNow = isPinned(emp, d);
+      contextMenu.show(e.clientX, e.clientY, [
+        {
+          label: pinnedNow ? "Fixierung aufheben" : "Für Auto-Plan fixieren",
+          sub: pinnedNow ? "Solver darf diese Zelle wieder ändern" : "Solver lässt diese Zelle unverändert",
+          icon: '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 17v5M9 10.76a2 2 0 0 1 1.11-1.79l1.78-.9a2 2 0 0 1 1.78 0l1.78.9A2 2 0 0 1 17.56 11l.3 4.94a1 1 0 0 1-1 1.06H7.14a1 1 0 0 1-1-1.06L9 10.76Z"/></svg>',
+          action: () => togglePinned(emp, d)
+        }
+      ], tdEl);
+    });
+  }
+}
+
+function createGridCellElement(y, m, emp, d, hols, gridConflicts) {
+  const we = isWeekend(y, m, d);
+  const hol = isHoliday(y, m, d, hols);
+  const isT = isTodayCol(y, m, d, TOD_Y, TOD_M, TOD_D);
+  const fri = isFriday(y, m, d);
+  const tdEl = document.createElement("td");
+  tdEl.tabIndex = 0;
+  tdEl.setAttribute("role", "gridcell");
+  tdEl.dataset.emp = emp;
+  tdEl.dataset.day = String(d);
+
+  let cls = "td-cell";
+  if (hol) cls += " hol";
+  if (we) cls += " we";
+  if (isT) cls += " today";
+  if (fri) cls += " is-fri";
+
+  if (emp === RBN_ROW_KEY) {
+    cls += " td-cell-rbn";
+    tdEl.className = cls;
+    const rbnValue = getRbnValue(y, m, d);
+    tdEl.innerHTML = `
+      <div class="cell-inner">
+        <span class="cell-assign cell-assign-rbn">${formatRbnDisplay(rbnValue)}</span>
+      </div>
+    `;
+    tdEl.setAttribute("aria-label", `Rufbereitschaft Tag ${d}: ${formatRbnDisplay(rbnValue) || "Kein Dienst"}`);
+    
+    tdEl.addEventListener("click", (e) => openEditor(RBN_ROW_KEY, d, { ctrlKey: e.ctrlKey || e.metaKey }));
+    tdEl.addEventListener("keydown", (e) => { 
+      if (e.key === "Enter" || e.key === " ") { 
+        e.preventDefault(); 
+        openEditor(RBN_ROW_KEY, d); 
+      } 
+    });
+    return tdEl;
+  }
+
+  const cell = getCell(y, m, emp, d);
+  const emptyWd = !we && !hol && !cell.assignment && !cell.duty;
+  const isAutoFRest = cell.assignment === "F" && (we || hol);
+  const { bg, fg } = cellColor(cell.assignment);
+
+  if (emptyWd) cls += " empty-wd";
+  if (isAutoFRest) cls += " auto-f-rest";
+  if (planMode && isPinned(emp, d)) cls += " pinned";
+
+  const cellConflicts = gridConflicts.get(dutyKey(emp, d));
+  if (cellConflicts?.length) cls += " cell-conflict";
+
+  tdEl.className = cls;
+  if (cell.assignment && !isAutoFRest) {
+    tdEl.dataset.code = cell.assignment.split("/")[0].trim();
+  }
+  
+  let ariaLabel = `Tag ${d}: `;
+  if (cell.assignment && !isAutoFRest) {
+    ariaLabel += `${cell.assignment} `;
+  } else {
+    ariaLabel += `Frei `;
+  }
+  if (cell.duty) {
+    ariaLabel += `, ${cell.duty === "D" ? "Bereitschaftsdienst" : "Hintergrunddienst"}`;
+  }
+  const cellComment = getComment(y, m, emp, d);
+  if (cellComment) {
+    ariaLabel += `, Notiz: ${cellComment}`;
+  }
+  if (cellConflicts?.length) {
+    ariaLabel += `, Konflikt: ${cellConflicts.join(" · ")}`;
+  }
+  tdEl.setAttribute("aria-label", ariaLabel);
+
+  if (cellConflicts?.length) {
+    tdEl.setAttribute("data-conflict", cellConflicts.join(" · "));
+  }
+  
+  if (cell.assignment && !isAutoFRest) {
+    tdEl.style.backgroundColor = bg;
+  }
+  
+  let innerHtml = `<div class="cell-inner">`;
+  innerHtml += `<span class="cell-assign"${isAutoFRest ? "" : ` style="color:${fg}"`}>${cell.assignment || ""}</span>`;
+  if (cell.duty) {
+    innerHtml += `<span class="cell-duty badge-${cell.duty}">${cell.duty}</span>`;
+  }
+  if (planMode && getWish(emp, d)) {
+    const wishCode = getWish(emp, d);
+    const icon = WISH_MAP[wishCode]?.icon || "";
+    innerHtml += `<span class="cell-wish wish-${wishCode}">${icon}</span>`;
+  }
+  const cellPinned = planMode && isPinned(emp, d);
+  if (cellPinned) {
+    innerHtml += `<span class="cell-pin" title="Für Auto-Plan fixiert">📌</span>`;
+  }
+  if (cellComment) {
+    const escapedComment = cellComment.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    innerHtml += `<span class="cell-comment-dot" title="${escapedComment}" aria-label="Notiz: ${escapedComment}"></span>`;
+  }
+  if (cellConflicts?.length) {
+    innerHtml += `<span class="cell-conflict-flag" aria-hidden="true">⚠</span>`;
+  }
+  innerHtml += `</div>`;
+  tdEl.innerHTML = innerHtml;
+  if (cellConflicts?.length) {
+    tdEl.title = `Regelkonflikt: ${cellConflicts.join(" · ")}`;
+  }
+
+  bindCellListeners(tdEl, emp, d);
+
+  return tdEl;
 }
 
 export function renderTbody(y, m, dim, hols, md) {
@@ -817,13 +1247,9 @@ export function renderTbody(y, m, dim, hols, md) {
     return;
   }
 
-  // Use the original sequence from data (filter only to avoid collisions)
   const employeesToRender = md.employees.filter(e => e !== RBN_ROW_LABEL && e !== RBN_ROW_KEY);
   const gridConflicts = computeGridConflicts(y, m);
 
-  // Role-band grouping: classify each row so the grid gets visual structure
-  // (a firm divider + a subtle per-band tint) whenever the role category
-  // changes between consecutive rows — without reordering the source sequence.
   const roleBand = (pos) => {
     if (["CA", "LOA", "OA", "OÄ"].includes(pos)) return "lead";
     if (["FA", "FÄ"].includes(pos)) return "fa";
@@ -847,7 +1273,8 @@ export function renderTbody(y, m, dim, hols, md) {
     tdN.className = "td-name";
     tdN.style.borderLeft = `3px solid ${pc.border}`;
     tdN.style.paddingLeft = "11px";
-    tdN.setAttribute("role", "button");
+    tdN.setAttribute("role", "rowheader");
+    tdN.setAttribute("aria-label", emp);
     tdN.setAttribute("tabindex", "0");
     
     let tdNHtml = `<span class="emp-label">${emp}</span>`;
@@ -864,7 +1291,6 @@ export function renderTbody(y, m, dim, hols, md) {
     `;
     tdN.innerHTML = tdNHtml;
     
-    // Modern Context Menu on Right Click (Secondary Click)
     tdN.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       contextMenu.show(e.clientX, e.clientY, [
@@ -902,157 +1328,10 @@ export function renderTbody(y, m, dim, hols, md) {
     tr.appendChild(tdN);
     
     for (let d = 1; d <= dim; d++) {
-      const cell = md.assignments?.[emp]?.[d] || {};
-      const we = isWeekend(y, m, d);
-      const hol = isHoliday(y, m, d, hols);
-      const isT = isTodayCol(y, m, d, TOD_Y, TOD_M, TOD_D);
-      const fri = isFriday(y, m, d);
-      
-      const emptyWd = !we && !hol && !cell.assignment && !cell.duty;
-      const isAutoFRest = cell.assignment === "F" && (we || hol);
-      const { bg, fg } = cellColor(cell.assignment);
-      
-      const tdEl = document.createElement("td");
-      let cls = "td-cell";
-      if (hol) cls += " hol";
-      if (we) cls += " we";
-      if (isT) cls += " today";
-      if (fri) cls += " is-fri";
-      if (emptyWd) cls += " empty-wd";
-      if (isAutoFRest) cls += " auto-f-rest";
-      if (planMode && isPinned(emp, d)) cls += " pinned";
-
-      const cellConflicts = gridConflicts.get(dutyKey(emp, d));
-      if (cellConflicts?.length) cls += " cell-conflict";
-
-      tdEl.className = cls;
-      tdEl.dataset.emp = emp;
-      tdEl.dataset.day = String(d);
-      tdEl.tabIndex = 0;
-      if (cellConflicts?.length) {
-        tdEl.setAttribute("data-conflict", cellConflicts.join(" · "));
-      }
-      
-      if (cell.assignment && !isAutoFRest) {
-        tdEl.style.backgroundColor = bg;
-      }
-      
-      const cellComment = getComment(y, m, emp, d);
-      let innerHtml = `<div class="cell-inner">`;
-      innerHtml += `<span class="cell-assign"${isAutoFRest ? "" : ` style="color:${fg}"`}>${cell.assignment || ""}</span>`;
-      if (cell.duty) {
-        innerHtml += `<span class="cell-duty badge-${cell.duty}">${cell.duty}</span>`;
-      }
-      if (planMode && getWish(emp, d)) {
-        const wishCode = getWish(emp, d);
-        const icon = WISH_MAP[wishCode]?.icon || "";
-        innerHtml += `<span class="cell-wish wish-${wishCode}">${icon}</span>`;
-      }
-      const cellPinned = planMode && isPinned(emp, d);
-      if (cellPinned) {
-        innerHtml += `<span class="cell-pin" title="Für Auto-Plan fixiert">📌</span>`;
-      }
-      if (cellComment) {
-        const escapedComment = cellComment.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        innerHtml += `<span class="cell-comment-dot" title="${escapedComment}" aria-label="Notiz: ${escapedComment}"></span>`;
-      }
-      if (cellConflicts?.length) {
-        innerHtml += `<span class="cell-conflict-flag" aria-hidden="true">⚠</span>`;
-      }
-      innerHtml += `</div>`;
-      tdEl.innerHTML = innerHtml;
-      if (cellConflicts?.length) {
-        tdEl.title = `Regelkonflikt: ${cellConflicts.join(" · ")}`;
-      }
-
-      if (!IS_MOBILE && cell.duty) {
-        const dutyBadge = tdEl.querySelector(".cell-duty");
-        if (dutyBadge) {
-          dutyBadge.draggable = true;
-          dutyBadge.addEventListener("dragstart", (e) => {
-            e.dataTransfer.setData("text/plain", JSON.stringify({ emp, day: d }));
-            e.dataTransfer.effectAllowed = "move";
-          });
-        }
-      }
-      if (!IS_MOBILE) {
-        tdEl.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          tdEl.classList.add("drag-over");
-        });
-        tdEl.addEventListener("dragleave", () => {
-          tdEl.classList.remove("drag-over");
-        });
-        tdEl.addEventListener("drop", (e) => {
-          e.preventDefault();
-          tdEl.classList.remove("drag-over");
-          let payload;
-          try {
-            payload = JSON.parse(e.dataTransfer.getData("text/plain"));
-          } catch {
-            return;
-          }
-          if (!payload || !payload.emp || !Number.isFinite(payload.day)) return;
-          moveDutyBadge(payload.emp, payload.day, emp, d);
-        });
-      }
-
-      tdEl.addEventListener("click", (e) => {
-        if (dragSelectionState.justDragged) {
-          dragSelectionState.justDragged = false;
-          return;
-        }
-        if (e.shiftKey && !IS_MOBILE) {
-          toggleCellSelection(emp, d);
-          return;
-        }
-        if (e.ctrlKey || e.metaKey) {
-          closeCellQuickPopover();
-          openEditor(emp, d, { ctrlKey: true });
-        }
-      });
-      tdEl.addEventListener("dblclick", () => {
-        closeCellQuickPopover();
-        openEditor(emp, d);
-      });
-      tdEl.addEventListener("focus", () => {
-        if (!IS_MOBILE) showCellQuickPopover(emp, d, tdEl);
-      });
-      tdEl.addEventListener("mouseenter", (e) => {
-        if (!IS_MOBILE && !dragSelectionState.active) {
-          showCellTooltip(emp, d, e.clientX, e.clientY, tdEl.getBoundingClientRect());
-        }
-      });
-      tdEl.addEventListener("mouseleave", () => {
-        hideTooltip();
-      });
-      tdEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          openEditor(emp, d);
-        }
-      });
-      if (planMode) {
-        tdEl.addEventListener("contextmenu", (e) => {
-          e.preventDefault();
-          const pinnedNow = isPinned(emp, d);
-          contextMenu.show(e.clientX, e.clientY, [
-            {
-              label: pinnedNow ? "Fixierung aufheben" : "Für Auto-Plan fixieren",
-              sub: pinnedNow ? "Solver darf diese Zelle wieder ändern" : "Solver lässt diese Zelle unverändert",
-              icon: '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 17v5M9 10.76a2 2 0 0 1 1.11-1.79l1.78-.9a2 2 0 0 1 1.78 0l1.78.9A2 2 0 0 1 17.56 11l.3 4.94a1 1 0 0 1-1 1.06H7.14a1 1 0 0 1-1-1.06L9 10.76Z"/></svg>',
-              action: () => togglePinned(emp, d)
-            }
-          ], tdEl);
-        });
-      }
-      if (state.multiEdit?.emp === emp && Array.isArray(state.multiEdit.days) && state.multiEdit.days.includes(d)) {
-        tdEl.classList.add("multi-selected");
-      }
+      const tdEl = createGridCellElement(y, m, emp, d, hols, gridConflicts);
       tr.appendChild(tdEl);
     }
     
-    // UI Polish: Row highlighting
     tr.addEventListener('mouseenter', () => tr.classList.add('tr-hover'));
     tr.addEventListener('mouseleave', () => tr.classList.remove('tr-hover'));
     
@@ -1071,45 +1350,79 @@ export function renderTbody(y, m, dim, hols, md) {
     tr.appendChild(tdN);
     
     for (let d = 1; d <= dim; d++) {
-      const we = isWeekend(y, m, d);
-      const hol = isHoliday(y, m, d, hols);
-      const isT = isTodayCol(y, m, d, TOD_Y, TOD_M, TOD_D);
-      const fri = isFriday(y, m, d);
-      const rbnValue = getRbnValue(y, m, d);
-      
-      const tdEl = document.createElement("td");
-      let cls = "td-cell td-cell-rbn";
-      if (hol) cls += " hol";
-      if (we) cls += " we";
-      if (isT) cls += " today";
-      if (fri) cls += " is-fri";
-      
-      tdEl.className = cls;
-      tdEl.dataset.emp = RBN_ROW_KEY;
-      tdEl.dataset.day = String(d);
-      tdEl.tabIndex = 0;
-      tdEl.innerHTML = `
-        <div class="cell-inner">
-          <span class="cell-assign cell-assign-rbn">${formatRbnDisplay(rbnValue)}</span>
-        </div>
-      `;
-      
-      tdEl.addEventListener("click", (e) => openEditor(RBN_ROW_KEY, d, { ctrlKey: e.ctrlKey || e.metaKey }));
-      tdEl.addEventListener("keydown", (e) => { 
-        if (e.key === "Enter" || e.key === " ") { 
-          e.preventDefault(); 
-          openEditor(RBN_ROW_KEY, d); 
-        } 
-      });
+      const tdEl = createGridCellElement(y, m, RBN_ROW_KEY, d, hols, gridConflicts);
       tr.appendChild(tdEl);
     }
     
-    // UI Polish: Row highlighting for RBN
     tr.addEventListener('mouseenter', () => tr.classList.add('tr-hover'));
     tr.addEventListener('mouseleave', () => tr.classList.remove('tr-hover'));
     
     tbody.appendChild(tr);
   }
+}
+
+export function updateGridCell(emp, d) {
+  const { year: y, month: m } = state;
+  const hols = getSaxonyHolidaysCached(y);
+  const gridConflicts = computeGridConflicts(y, m);
+  
+  const oldCell = document.querySelector(`#plan-tbody td.td-cell[data-emp="${emp}"][data-day="${d}"]`);
+  if (oldCell) {
+    const wasFocused = document.activeElement === oldCell;
+    const newCell = createGridCellElement(y, m, emp, d, hols, gridConflicts);
+    oldCell.replaceWith(newCell);
+    if (wasFocused) {
+      newCell.focus();
+    }
+  }
+}
+
+export function updateAllConflicts() {
+  const { year: y, month: m } = state;
+  const gridConflicts = computeGridConflicts(y, m);
+  
+  const cells = document.querySelectorAll("#plan-tbody td.td-cell");
+  cells.forEach(cell => {
+    const emp = cell.dataset.emp;
+    const d = parseInt(cell.dataset.day, 10);
+    if (emp === RBN_ROW_KEY) return;
+    const key = dutyKey(emp, d);
+    const cellConflicts = gridConflicts.get(key);
+    
+    const hasConflictClass = cell.classList.contains("cell-conflict");
+    const needsConflictClass = !!(cellConflicts?.length);
+    
+    if (hasConflictClass !== needsConflictClass) {
+      cell.classList.toggle("cell-conflict", needsConflictClass);
+      
+      const flag = cell.querySelector(".cell-conflict-flag");
+      if (needsConflictClass) {
+        if (!flag) {
+          const inner = cell.querySelector(".cell-inner");
+          if (inner) {
+            inner.insertAdjacentHTML("beforeend", `<span class="cell-conflict-flag" aria-hidden="true">⚠</span>`);
+          }
+        }
+        cell.title = `Regelkonflikt: ${cellConflicts.join(" · ")}`;
+        cell.setAttribute("data-conflict", cellConflicts.join(" · "));
+      } else {
+        if (flag) flag.remove();
+        cell.title = "";
+        cell.removeAttribute("data-conflict");
+      }
+    }
+  });
+}
+
+export function updateGridStatsAndHeader() {
+  const { year: y, month: m } = state;
+  const dim = daysInMonth(y, m);
+  const md = getMonthData(y, m);
+  const hols = getSaxonyHolidaysCached(y);
+  
+  renderStatsBar(y, m, dim, md);
+  renderTfoot(y, m, dim, md);
+  renderThead(y, m, dim, hols, md);
 }
 
 export function renderTfoot(y, m, dim, md) {
@@ -1179,17 +1492,66 @@ export function renderTfoot(y, m, dim, md) {
 document.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
   if (e.target.closest?.(".cell-duty")) return;
+  // Strg/Cmd/Shift werden vom Klick-Handler (Toggle/Bereich) verarbeitet.
+  if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
   const cell = e.target.closest?.("#plan-tbody .td-cell");
   if (!cell) return;
   const emp = cell.dataset.emp;
   const day = parseInt(cell.dataset.day || "", 10);
   if (!emp || !Number.isFinite(day) || emp === RBN_ROW_KEY) return;
+
+  const me = state.multiEdit;
+  const isSelected = me.emp === emp && Array.isArray(me.days) && me.days.includes(day);
+  const multi = isSelected && me.days.length > 1;
+
+  // Dismiss-Gesten (Menü schließen statt versetzen/öffnen):
+  //   1) Erneuter Klick auf die Zelle, deren Menü gerade offen ist  → toggeln zu.
+  //   2) Klick auf eine Zelle AUSSERHALB einer Mehrfachauswahl       → schließen.
+  // Beides nur „scharf schalten"; ausgeführt wird in mouseup (reiner Klick).
+  // Wird stattdessen gezogen, entsteht in mouseover eine frische Auswahl.
+  const prevMulti = !!(me.emp && Array.isArray(me.days) && me.days.length > 1);
+  const menuOpenHere = !!quickPopover.el && quickPopover.emp === emp && quickPopover.day === day;
+  const wantsDismiss = (prevMulti && !isSelected) || (!prevMulti && menuOpenHere);
+  if (wantsDismiss) {
+    dragSelectionState.active = true;
+    dragSelectionState.justDragged = false;
+    dragSelectionState.dismissOnClick = true;
+    dragSelectionState.mode = "add";
+    dragSelectionState.emp = emp;
+    dragSelectionState.startEmp = emp;
+    dragSelectionState.startDay = day;
+    dragSelectionState.touched = new Set([day]);
+    document.body.classList.add("is-drag-selecting");
+    return;
+  }
+
+  // Auf einer bereits markierten Zelle innerhalb einer Mehrfachauswahl startet
+  // eine Abwahl-Geste; sonst beginnt eine frische additive Auswahl.
+  if (multi) {
+    dragSelectionState.mode = "remove";
+  } else {
+    dragSelectionState.mode = "add";
+    if (!isSelected) {
+      state.multiEdit.emp = emp;
+      state.multiEdit.days = [];
+      state.multiEdit.anchor = null;
+    }
+  }
+
   dragSelectionState.active = true;
   dragSelectionState.justDragged = false;
   dragSelectionState.emp = emp;
+  dragSelectionState.startEmp = emp;
+  dragSelectionState.startDay = day;
   dragSelectionState.touched = new Set([day]);
   document.body.classList.add("is-drag-selecting");
-  applyDragSelection(emp, day);
+  // Im Abwahl-Modus (Start auf markierter Zelle) bleibt die Auswahl bei einem
+  // reinen Klick erhalten – erst das Ziehen entfernt Zellen. Im Add-Modus wird
+  // die Startzelle sofort aufgenommen.
+  if (dragSelectionState.mode === "add") {
+    setDaySelected(emp, day, true);
+    syncSelectionClasses();
+  }
 });
 
 document.addEventListener("mouseover", (e) => {
@@ -1200,14 +1562,55 @@ document.addEventListener("mouseover", (e) => {
   const day = parseInt(cell.dataset.day || "", 10);
   if (emp !== dragSelectionState.emp || !Number.isFinite(day)) return;
   if (dragSelectionState.touched.has(day)) return;
+
+  // Wird nach einem Außen-Klick (Dismiss-Modus) doch gezogen, so entsteht eine
+  // frische additive Auswahl ab der Startzelle statt eines bloßen Schließens.
+  if (dragSelectionState.dismissOnClick) {
+    dragSelectionState.dismissOnClick = false;
+    state.multiEdit.emp = dragSelectionState.startEmp;
+    state.multiEdit.days = [dragSelectionState.startDay];
+    state.multiEdit.anchor = dragSelectionState.startDay;
+  }
+
   dragSelectionState.touched.add(day);
   applyDragSelection(emp, day);
   dragSelectionState.justDragged = true;
-  render();
+  syncSelectionClasses();
 });
 
 document.addEventListener("mouseup", () => {
+  const wasActive = dragSelectionState.active;
+  const dragged = dragSelectionState.justDragged;
+  const dismiss = dragSelectionState.dismissOnClick && !dragged;
+  const startEmp = dragSelectionState.startEmp;
+  const startDay = dragSelectionState.startDay;
   resetDragSelectionState();
+  if (!wasActive) return;
+
+  // Dismiss-Klick (erneut auf die offene Zelle bzw. außerhalb der Mehrfach-
+  // auswahl) → Menü schließen und Auswahl beenden; kein neues Menü öffnen.
+  if (dismiss) {
+    dismissQuickMenu();
+    return;
+  }
+
+  // Schnellmenü zuverlässig öffnen – sowohl nach einem reinen Klick als auch
+  // nach einer Ziehgeste – verankert an der zuletzt berührten Zelle.
+  const me = state.multiEdit;
+  let anchorEmp = startEmp;
+  let anchorDay = startDay;
+  if (dragged && me?.emp && Array.isArray(me.days) && me.days.length) {
+    anchorEmp = me.emp;
+    anchorDay = me.days[me.days.length - 1];
+  }
+  if (!anchorEmp || !Number.isFinite(anchorDay) || anchorEmp === RBN_ROW_KEY) return;
+
+  const tbody = document.getElementById("plan-tbody");
+  const cell = tbody?.querySelector(`.td-cell[data-emp="${CSS.escape(anchorEmp)}"][data-day="${anchorDay}"]`);
+  if (cell) {
+    cell.focus({ preventScroll: true });
+    showCellQuickPopover(anchorEmp, anchorDay, cell);
+  }
 });
 
 window.addEventListener("blur", () => {

@@ -1,27 +1,60 @@
 /**
- * RadPlan Mobile Optimization
- * Unterstützt alle modernen Smartphones und Tablets
- * iPhone 14 Pro Max: 430x932 CSS pixels, Safe Area: top 59px, bottom 34px
+ * RadPlan Mobile Optimization for iPhone 14 Pro Max
+ * Viewport: 430x932 CSS pixels | Safe Area: top 59px, bottom 34px | DPR: 3x
  */
 
-/* Touch-Geräte: Mindestgröße 44px für alle interaktiven Elemente */
+/* Phone PORTRAIT (iPhone 14 Pro Max = 430px wide, plus all smaller phones).
+   Gated to touch devices so desktop windows narrower than the old 430px
+   threshold — or merely in a portrait-ish aspect — are never affected. The
+   previous `min-width: 430px` matched desktops AND skipped 390px-class phones;
+   `max-width: 480px` is the correct phone target. */
+@media only screen and (max-width: 480px) and (orientation: portrait) and (pointer: coarse) {
+  body.is-mobile {
+    --header-h: 48px;
+    --name-w: 120px;
+    --cell-w: 42px;
+    --row-h: clamp(44px, 5dvh, 56px);
+    --foot-h: 28px;
+    --overlay-pad: 14px;
+  }
+
+  body.is-mobile.is-standalone #app-header {
+    height: calc(var(--header-h) + var(--safe-top));
+    padding-top: var(--safe-top);
+    padding-left: max(var(--safe-left), 8px);
+    padding-right: max(var(--safe-right), 8px);
+  }
+
+  body.is-mobile #grid-wrapper {
+    padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left));
+  }
+}
+
+/* Phone LANDSCAPE (iPhone 14 Pro Max = 932px wide / 430px tall). Keyed off the
+   short height so it never matches desktop landscape windows ≥932px wide. */
+@media only screen and (orientation: landscape) and (max-height: 480px) and (pointer: coarse) {
+  body.is-mobile {
+    --header-h: 42px;
+    --name-w: 140px;
+    --cell-w: 46px;
+    --row-h: clamp(40px, 4.2dvh, 52px);
+    --overlay-pad: 10px;
+  }
+
+  /* Use the side safe-areas (Dynamic Island sits on a side edge in landscape). */
+  body.is-mobile.is-standalone #app-header {
+    padding-left: max(var(--safe-left), 8px);
+    padding-right: max(var(--safe-right), 8px);
+  }
+
+  body.is-mobile #grid-wrapper {
+    padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left));
+  }
+}
+
 @media (pointer: coarse) {
-  button,
-  .chip-row > *,
-  .mnav-btn,
-  .mbtn,
-  .modal-x,
-  .nav-btn,
-  .month-label-btn,
-  .hbtn,
-  .td-cell,
-  .td-name,
-  #btn-global-undo,
-  #btn-global-redo,
-  #btn-history,
-  #btn-shortcuts,
-  #btn-print-preview,
-  #btn-settings {
+  button, .chip-row > *, .mnav-btn, .mbtn, .modal-x,
+  .nav-btn, .month-label-btn, .hbtn, .td-cell, .td-name {
     min-height: 44px;
     min-width: 44px;
   }
@@ -33,68 +66,9 @@
   }
 }
 
-/* Phone Portrait (bis 480px) */
-@media only screen and (max-width: 480px) and (orientation: portrait) and (pointer: coarse) {
-  body.is-mobile {
-    --header-h: 48px;
-    --name-w: 100px;
-    --cell-w: 38px;
-    --row-h: clamp(44px, 5dvh, 56px);
-    --foot-h: 28px;
-    --overlay-pad: 12px;
-  }
-
-  body.is-mobile.is-standalone #app-header {
-    height: calc(var(--header-h) + var(--safe-top));
-    padding-top: var(--safe-top);
-    padding-left: max(var(--safe-left), 8px);
-    padding-right: max(var(--safe-right), 8px);
-  }
-
-  body.is-mobile #grid-wrapper {
-    padding: calc(6px + var(--safe-top)) calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(6px + var(--safe-left));
-  }
-
-  body.is-mobile .hbtn-lbl {
-    display: none;
-  }
-
-  body.is-mobile .hbtn {
-    padding: 8px;
-  }
-}
-
-/* Phone Landscape */
-@media only screen and (orientation: landscape) and (max-height: 480px) and (pointer: coarse) {
-  body.is-mobile {
-    --header-h: 40px;
-    --name-w: 120px;
-    --cell-w: 42px;
-    --row-h: clamp(38px, 4.2dvh, 52px);
-    --overlay-pad: 8px;
-  }
-
-  body.is-mobile.is-standalone #app-header {
-    padding-left: max(var(--safe-left), 8px);
-    padding-right: max(var(--safe-right), 8px);
-  }
-
-  body.is-mobile #grid-wrapper {
-    padding: calc(6px + var(--safe-top)) calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(6px + var(--safe-left));
-  }
-}
-
 /* iOS Bottom Sheet Optimizations */
 @media screen and (max-width: 768px) {
-  .modal-editor,
-  .modal-import,
-  .modal-profile,
-  .modal-emps,
-  .modal-dept,
-  .modal-autoplan,
-  .modal-yearplan,
-  .modal-score-info,
-  .modal-ap-report {
+  .modal-editor, .modal-import, .modal-profile {
     max-width: 100% !important;
     margin-top: auto !important;
     border-bottom-left-radius: 0 !important;
@@ -107,18 +81,14 @@
     will-change: transform;
     animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards !important;
   }
-
+  
   .overlay {
     align-items: flex-end !important;
   }
 
   @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
   }
 
   .modal.modal-closing {
@@ -126,32 +96,191 @@
   }
 
   @keyframes slideDown {
-    from {
-      transform: translateY(0);
-    }
-    to {
-      transform: translateY(100%);
-    }
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
   }
 }
 
-/* Tablet Anpassungen */
-@media screen and (min-width: 769px) and (max-width: 1024px) {
-  body.is-mobile {
-    --name-w: 130px;
-    --cell-w: 44px;
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE ACTION SHEET ("Menü") — vollständiges, getiltes Bedienkonzept
+   Bringt jede Desktop-Funktion auf das Telefon: Heute, Suche, Design,
+   Undo/Redo, Mitarbeitende, Jahresplan, Drucken, Export, Import, Sync.
+   ════════════════════════════════════════════════════════════════════════ */
+.mm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 0;
+}
+
+.mm-section-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 8px 2px 2px;
+}
+.mm-section-label:first-child { margin-top: 0; }
+
+.mm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mm-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 76px;
+  padding: 12px 6px;
+  border-radius: var(--radius-lg);
+  border: var(--border);
+  background: rgba(var(--ink-rgb), .025);
+  color: var(--text-1);
+  font-family: var(--font-sans, inherit);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+.mm-tile:active { transform: scale(.94); background: var(--accent-dim); border-color: var(--accent); }
+.mm-tile:disabled { opacity: .38; pointer-events: none; }
+.mm-tile-ic { display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.mm-tile-lbl { display: block; }
+
+.mm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mm-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 60px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: var(--border);
+  background: rgba(var(--ink-rgb), .025);
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform .12s ease, background .15s ease;
+}
+.mm-row:active { transform: scale(.98); background: var(--accent-dim); }
+.mm-row-ic {
+  flex-shrink: 0;
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 11px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.mm-row-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mm-row-lbl { font-size: 14px; font-weight: 600; }
+.mm-row-sub { font-size: 11.5px; color: var(--text-3); line-height: 1.25; }
+.mm-row-danger .mm-row-ic { background: rgba(239,68,68,.12); color: #EF4444; }
+.mm-row-danger .mm-row-lbl { color: #EF4444; }
+/* Umschalter-Zeilen (z. B. Farbenblind-Modus): Text dehnt sich, Schalter rechts. */
+.mm-row[role="menuitemcheckbox"] .mm-row-txt { flex: 1; }
+.mm-row[role="menuitemcheckbox"] .hmenu-state { margin-left: auto; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   GLOBALE ÜBERLAUF-SCHUTZSCHICHT FÜR MOBILE MODALE & ANSICHTEN
+   ------------------------------------------------------------------------
+   Flex-/Grid-Kinder haben standardmäßig `min-width:auto`. Dadurch blähen
+   breite Blattknoten (Chart.js-Canvas, nicht umbrechende Texte, Datentabellen)
+   das Layout über die Viewport-Breite hinaus auf — der Dialog (`overflow:hidden`)
+   schneidet den Überhang dann rechts ab. Diese Schicht setzt Layout-Container
+   auf `min-width:0` zurück, damit Inhalte umbrechen und Tabellen-Wrapper
+   horizontal scrollen statt zu überlaufen.
+
+   Der gesamte Selektor steht in `:where(...)` → Spezifität 0. Dadurch behalten
+   die 44-px-Touch-Target-Regeln (höhere Spezifität) für Buttons/Chips/Zellen
+   Vorrang; nur die ungewollte Auto-Inflation der Layout-Boxen wird neutralisiert.
+   ════════════════════════════════════════════════════════════════════════ */
+:where(body.is-mobile .overlay .modal, body.is-mobile .mobile-view)
+:where(div, section, article, header, footer, nav, ul, ol, li, dl, dd, table, thead, tbody, tfoot, tr, p, span, label, form, fieldset, figure) {
+  min-width: 0;
+}
+
+/* Medien dürfen nie breiter als ihr Container werden. */
+:where(body.is-mobile .overlay .modal, body.is-mobile .mobile-view)
+:where(canvas, img, video) {
+  max-width: 100%;
+}
+
+/* Datentabellen behalten ihre Spaltenbreite und scrollen horizontal im Wrapper,
+   statt den Dialog zu sprengen. */
+body.is-mobile .overlay .modal .dept-table-wrap,
+body.is-mobile .overlay .modal .yp-fair-table-wrap,
+body.is-mobile .overlay .modal .yp-eval-table-wrap,
+body.is-mobile .overlay .modal .yp-proj-table-wrap,
+body.is-mobile .overlay .modal .yr-table-wrap,
+body.is-mobile .overlay .modal .empdash-month-table-wrap,
+body.is-mobile .overlay .modal .ap-table-wrap,
+body.is-mobile .overlay .modal .yp-grid-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  min-width: 0;
+  overscroll-behavior-x: contain;
+}
+
+/* ── Jahresplaner: Notch/Safe-Area auf dem iPhone berücksichtigen ───────── */
+@media (max-width: 700px) {
+  #modal-yearplan .modal {
+    height: 100dvh;
+    height: 100svh;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    box-sizing: border-box;
+  }
+  #modal-yearplan .yp-modal-hd { padding-top: 12px; }
+  #modal-yearplan .modal-ft {
+    padding-bottom: max(12px, var(--safe-bottom, 0px)) !important;
   }
 }
 
-/* Safe Area für Notch-Geräte */
-@supports (padding: max(0px)) {
-  body.is-mobile #app-header {
-    padding-top: max(var(--safe-top), 0px);
-    padding-left: max(var(--safe-left), 0px);
-    padding-right: max(var(--safe-right), 0px);
+/* Mobile contrast hardening: these phone-only surfaces mix fixed light cards,
+   themed glass chrome and very small labels. Keep every label comfortably above
+   AA in both light and dark themes instead of relying on faint opacity tiers. */
+@media (max-width: 600px) {
+  body.is-mobile .mnav-btn { color: var(--text-2); font-weight: 650; }
+  body.is-mobile .mnav-btn svg { color: currentColor; }
+  body.is-mobile .mobile-week-sep { color: var(--text-2); }
+  body.is-mobile .mobile-month-summary,
+  body.is-mobile .mobile-day-card,
+  body.is-mobile .mobile-day-sheet .modal-bd {
+    --ink-rgb: 15,23,42;
+    --ink-strong: #0F172A;
+    --text-1: #0F172A;
+    --text-2: rgba(15,23,42,.88);
+    --text-3: rgba(15,23,42,.76);
+    --text-faint: rgba(15,23,42,.68);
   }
-
-  body.is-mobile #grid-wrapper {
-    padding-bottom: max(var(--safe-bottom), 0px);
+  body.is-mobile .mms-item-emp .mms-code,
+  body.is-mobile .mdc-assign-more,
+  body.is-mobile .mday-emp-sub,
+  body.is-mobile .mday-empty-assign,
+  body.is-mobile .mday-edit-icon,
+  body.is-mobile .mdc-arrow {
+    color: #64748B;
+  }
+  body.is-mobile .mday-section-hd {
+    color: #475569;
+    background: #F8FAFC;
   }
 }

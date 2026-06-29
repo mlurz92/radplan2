@@ -1,0 +1,124 @@
+/* ===========================================================================
+   analytics-compliance — Modul „Regelkonformität"
+   Nur .comp-* Klassen; geteilte .ah-* werden wiederverwendet.
+   Schweregrad-Farben: high #EF4444, mid #F59E0B, low #64748B.
+   =========================================================================== */
+
+.comp-mod { display: flex; flex-direction: column; }
+
+/* ---- Header: Score + KPIs ---- */
+.comp-header {
+  display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.comp-score {
+  flex: 0 0 auto; min-width: 150px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 14px 22px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--comp-score-col) 35%, var(--gray-200));
+  background: color-mix(in srgb, var(--comp-score-col) 10%, transparent);
+}
+.comp-score-value {
+  font-size: 46px; font-weight: 800; line-height: 1;
+  color: var(--comp-score-col); font-variant-numeric: tabular-nums;
+}
+.comp-score-label {
+  font-size: 10.5px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.comp-header-kpis { flex: 1 1 320px; min-width: 0; display: flex; align-items: center; }
+.comp-header-kpis .ah-kpi-grid { width: 100%; }
+
+/* ---- Typ-Aufschlüsselung ---- */
+.comp-type-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;
+}
+.comp-type-chip {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: var(--radius); padding: 11px 14px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.comp-type-count {
+  font-size: 22px; font-weight: 800; line-height: 1;
+  color: var(--text-1); font-variant-numeric: tabular-nums;
+}
+.comp-type-label { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.comp-type-chip--zero { opacity: .55; }
+
+/* ---- Filter-Pillen ---- */
+.comp-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.comp-filter {
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--gray-200); background: var(--gray-50);
+  color: var(--text-2); transition: background .12s, color .12s, border-color .12s;
+}
+.comp-filter:hover { background: var(--gray-100, rgba(148,163,184,.12)); }
+.comp-filter.is-active {
+  background: var(--text-1); color: var(--gray-50);
+  border-color: var(--text-1);
+}
+
+/* ---- Befundliste ---- */
+.comp-list { display: flex; flex-direction: column; gap: 16px; }
+.comp-group { display: flex; flex-direction: column; gap: 6px; }
+.comp-group-head {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 800; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .03em;
+}
+
+.comp-finding {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--gray-200); border-radius: var(--radius);
+  background: var(--gray-50);
+  cursor: pointer; transition: background .12s, border-color .12s;
+}
+.comp-finding:hover { background: var(--gray-100, rgba(148,163,184,.12)); }
+.comp-finding:focus-visible { outline: 2px solid var(--comp-score-col, #64748B); outline-offset: 1px; }
+
+.comp-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.comp-dot--high { background: #EF4444; }
+.comp-dot--mid  { background: #F59E0B; }
+.comp-dot--low  { background: #64748B; }
+
+.comp-badge {
+  font-size: 9.5px; font-weight: 800; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; line-height: 1.5;
+}
+.comp-badge--rest    { color: #B91C1C; background: rgba(239,68,68,.12); }
+.comp-badge--cluster { color: #B45309; background: rgba(245,158,11,.14); }
+.comp-badge--rule    { color: #6D28D9; background: rgba(124,58,237,.12); }
+.comp-badge--qual    { color: #334155; background: rgba(100,116,139,.16); }
+
+.comp-text {
+  font-size: 12px; color: var(--text-1); line-height: 1.35;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.comp-date {
+  font-size: 11px; font-weight: 600; color: var(--text-faint);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  /* Header: Score und KPIs untereinander stapeln. */
+  .comp-header { flex-direction: column; gap: 12px; margin-bottom: 14px; }
+  .comp-score { flex: 1 1 auto; width: 100%; min-width: 0; padding: 12px; flex-direction: row; justify-content: center; gap: 10px; }
+  .comp-score-value { font-size: 36px; }
+  .comp-header-kpis { flex: 1 1 auto; width: 100%; }
+  .comp-type-grid { grid-template-columns: 1fr 1fr; }
+
+  .comp-finding { grid-template-columns: auto auto 1fr; }
+  .comp-date { grid-column: 3; text-align: right; }
+  .comp-text { overflow-wrap: anywhere; }
+}
+@media (max-width: 380px) {
+  .comp-type-grid { grid-template-columns: 1fr; }
+  .comp-finding { grid-template-columns: auto 1fr; gap: 8px; }
+  .comp-badge { grid-column: 2; justify-self: start; }
+  .comp-date { grid-column: 2; }
+}

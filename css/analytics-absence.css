@@ -1,0 +1,72 @@
+/* ==========================================================================
+   analytics-absence — Modul „Abwesenheiten & Kapazität"
+   Nur .abs-* Klassen; alles Übrige nutzt die gemeinsamen .ah-* Klassen.
+   Light + Dark über bestehende Variablen (--gray-*, --text-*, --radius).
+   ========================================================================== */
+
+.abs-kpis { margin-bottom: 12px; }
+
+/* ---- Kapazitäts-/Engpass-Verlauf ---- */
+.abs-legend { margin-bottom: 10px; }
+
+.abs-chart-box {
+  position: relative;
+  height: 220px;
+  width: 100%;
+}
+.abs-canvas { width: 100% !important; height: 100% !important; }
+
+/* CSS-Balkenstreifen-Fallback (ohne Chart.js) */
+.abs-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  padding: 4px 2px 0;
+  overflow-x: auto;
+}
+.abs-bar {
+  flex: 1 1 6px;
+  min-width: 5px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.abs-bar-fill {
+  width: 100%;
+  background: #7C3AED;
+  border-radius: 3px 3px 0 0;
+  transition: height .2s ease;
+  min-height: 2px;
+}
+.abs-bar--hot .abs-bar-fill { background: #EF4444; }
+.abs-bar:hover .abs-bar-fill { filter: brightness(1.1); }
+
+/* ---- Tabelle ---- */
+.abs-table-wrap { max-height: 420px; overflow-y: auto; }
+.abs-td-total { font-weight: 800; color: var(--text-1); }
+
+/* ---- Engpass-/Kollisionswarnungen ---- */
+.abs-warn-block + .abs-warn-block { margin-top: 12px; }
+.abs-warn-head {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2, var(--text-3));
+  margin-bottom: 6px;
+}
+.abs-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --- Portrait-Mobile: Chart-Höhe halten, Tabelle scrollbar --- */
+@media (max-width: 560px) {
+  .abs-chart-box { height: 200px; }
+  .abs-strip { height: 150px; }
+  .abs-table-wrap { max-height: 360px; }
+}
+@media (max-width: 380px) {
+  .abs-chart-box { height: 180px; }
+  .abs-strip { height: 130px; }
+}

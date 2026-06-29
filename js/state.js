@@ -27,9 +27,13 @@ export let state = {
     month: new Date().getMonth()
   },
   profileEmp: null,
+  profileCalView: "month",
+  empScreen: "team",
+  profileTab: "overview",
   multiEdit: {
     emp: null,
     days: [],
+    anchor: null,
   },
 };
 
@@ -411,3 +415,11 @@ export function setIsMobile(val) {
 export function setResponsiveLayoutRaf(val) { 
   responsiveLayoutRaf = val; 
 }
+
+export const store = {
+  get DATA() { return DATA; },
+  set DATA(val) { DATA = val; },
+  get serverFetchSuccessful() { return serverFetchSuccessful; },
+  set serverFetchSuccessful(val) { serverFetchSuccessful = val; }
+};
+

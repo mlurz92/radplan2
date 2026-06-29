@@ -13,9 +13,9 @@ function staticCommands() {
   return [
     {
       group: "Funktionen",
-      label: "Jahresplan öffnen",
-      hint: "Fairness, Kurven, Projektion",
-      run: () => document.getElementById("btn-yearplan")?.click()
+      label: "Auswertungen öffnen",
+      hint: "Abdeckung, Fairness, Jahresgitter, Kurven, Prognose, Berichte",
+      run: () => document.getElementById("btn-analytics")?.click()
     },
     {
       group: "Funktionen",
